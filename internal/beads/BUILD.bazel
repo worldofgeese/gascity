@@ -108,6 +108,7 @@ go_test(
         "hangbudget_linux_test.go",
         "hangbudget_test.go",
         "live_ready_test.go",
+        "isolated_delete_test.go",
         "local_sidecar_test.go",
         "lookup_limit_error_test.go",
         "membership_test.go",

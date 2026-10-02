@@ -15,10 +15,11 @@ import (
 
 func newWispCmd(stdout, stderr io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "wisp",
-		Short:  "Wisp lifecycle operations",
-		Hidden: true,
+		Use:   "wisp",
+		Short: "Class-local root-only formula lifecycle",
 	}
+	cmd.AddCommand(newWispListCmd(stdout, stderr))
+	cmd.AddCommand(newWispBurnCmd(stdout, stderr))
 	cmd.AddCommand(newWispAutocloseCmd(stdout, stderr))
 	return cmd
 }

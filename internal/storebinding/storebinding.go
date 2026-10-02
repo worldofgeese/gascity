@@ -65,6 +65,9 @@ type GraphStore interface {
 	UpdateIfMatch(string, int64, beads.UpdateOpts) error
 	CloseIfMatch(string, int64) error
 	DeleteIfMatch(string, int64) error
+	// DeleteIsolatedIfMatch atomically refuses graph references as well as a
+	// changed revision. A provider without this stronger capability refuses.
+	DeleteIsolatedIfMatch(string, int64) error
 	CompareAndSetMetadataKey(string, string, string, string) (bool, error)
 	Close(string) error
 	Reopen(string) error

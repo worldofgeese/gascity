@@ -141,20 +141,56 @@ func (s *SQLiteStore) DeleteIfMatch(id string, expectedRevision int64) error {
 		return err
 	}
 	return s.conditionalWrite(id, expectedRevision, func(ctx context.Context, tx *sql.Tx, _ Bead) error {
-		if _, err := tx.Exec(`DELETE FROM beads WHERE id=?`, id); err != nil {
-			return fmt.Errorf("deleting bead %q: %w", id, err)
-		}
-		if err := s.clearClaimFenceTx(context.Background(), tx, id); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`DELETE FROM deps WHERE issue_id=? OR depends_on_id=?`, id, id); err != nil {
-			return fmt.Errorf("deleting bead %q deps: %w", id, err)
-		}
-		if err := s.clearGraphEdgeMetadataForBeadsTx(ctx, tx, []string{id}); err != nil {
-			return err
-		}
-		return nil
+		return s.deleteBeadTx(ctx, tx, id)
 	})
+}
+
+// DeleteIsolatedIfMatch checks references in the deletion's own transaction.
+// A WAL conflict retries the entire check, never just the DELETE.
+func (s *SQLiteStore) DeleteIsolatedIfMatch(id string, expectedRevision int64) error {
+	if err := s.ensureOpen(); err != nil {
+		return err
+	}
+	return s.conditionalWrite(id, expectedRevision, func(ctx context.Context, tx *sql.Tx, b Bead) error {
+		if err := validateIsolatedDeleteTarget(b); err != nil {
+			return err
+		}
+		args := []any{id, id, id}
+		for _, key := range isolatedGraphReferenceKeys {
+			args = append(args, key)
+		}
+		args = append(args, id, id)
+		keys := strings.TrimSuffix(strings.Repeat("?,", len(isolatedGraphReferenceKeys)), ",")
+		var referenced bool
+		err := tx.QueryRowContext(ctx, `SELECT EXISTS (
+			SELECT 1 FROM beads WHERE parent_id=?
+			UNION ALL
+			SELECT 1 FROM metadata WHERE bead_id<>? AND meta_value=?
+				AND meta_key IN (`+keys+`)
+			UNION ALL
+			SELECT 1 FROM deps WHERE issue_id=? OR depends_on_id=?
+		)`, args...).Scan(&referenced)
+		if err != nil {
+			return fmt.Errorf("checking bead %q isolation: %w", id, err)
+		}
+		if referenced {
+			return fmt.Errorf("deleting bead %q: %w", id, ErrNotIsolated)
+		}
+		return s.deleteBeadTx(ctx, tx, id)
+	})
+}
+
+func (s *SQLiteStore) deleteBeadTx(ctx context.Context, tx *sql.Tx, id string) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM beads WHERE id=?`, id); err != nil {
+		return fmt.Errorf("deleting bead %q: %w", id, err)
+	}
+	if err := s.clearClaimFenceTx(ctx, tx, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM deps WHERE issue_id=? OR depends_on_id=?`, id, id); err != nil {
+		return fmt.Errorf("deleting bead %q deps: %w", id, err)
+	}
+	return s.clearGraphEdgeMetadataForBeadsTx(ctx, tx, []string{id})
 }
 
 // CompareAndSetMetadataKey swaps metadata[key] iff its current value equals

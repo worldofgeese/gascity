@@ -155,3 +155,29 @@ func (fs *FileStore) CompareAndSetMetadataKey(id, key, expected, next string) (b
 	}
 	return true, nil
 }
+
+// DeleteIsolatedIfMatch preserves the cross-process reload/check/save lock;
+// promoting MemStore's method would bypass persistence and its write fence.
+func (fs *FileStore) DeleteIsolatedIfMatch(id string, expectedRevision int64) error {
+	fs.fmu.Lock()
+	defer fs.fmu.Unlock()
+	if fs.DisableConditionalWrites {
+		return ErrConditionalWriteUnsupported
+	}
+	if err := fs.locker.Lock(); err != nil {
+		return err
+	}
+	defer fs.locker.Unlock() //nolint:errcheck // best-effort unlock
+	if err := fs.reloadFromDisk(); err != nil {
+		return err
+	}
+	snap := fs.snapshotLocked()
+	if err := fs.MemStore.DeleteIsolatedIfMatch(id, expectedRevision); err != nil {
+		return err
+	}
+	if err := fs.save(); err != nil {
+		fs.restoreFrom(snap.seq, snap.beads, snap.deps)
+		return err
+	}
+	return nil
+}

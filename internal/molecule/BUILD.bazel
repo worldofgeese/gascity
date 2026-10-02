@@ -9,6 +9,7 @@ go_library(
         "graph_apply.go",
         "molecule.go",
         "native_step_topology.go",
+        "root_wisp.go",
         "workflow_bead.go",
     ],
     importpath = "github.com/gastownhall/gascity/internal/molecule",
@@ -20,6 +21,7 @@ go_library(
         "//internal/formula",
         "//internal/fsys",
         "//internal/pathutil",
+        "//internal/storebinding",
     ],
 )
 
@@ -34,6 +36,7 @@ go_test(
         "cook_choosing_store_test.go",
         "molecule_test.go",
         "native_step_topology_test.go",
+        "root_wisp_test.go",
         "testenv_import_test.go",
         "tutorial_regression_test.go",
         "workflow_bead_test.go",
@@ -54,6 +57,7 @@ go_test(
         "//internal/formulatest",
         "//internal/fsys",
         "//internal/rollout/gate",
+        "//internal/storebinding",
         "//internal/testenv",
     ],
 )

@@ -250,8 +250,26 @@ func (c *CachingStore) DeleteIfMatch(id string, expectedRevision int64) error {
 	if !ok {
 		return ErrConditionalWriteUnsupported
 	}
+	return c.deleteConditionally(id, func() error {
+		return writer.DeleteIfMatch(id, expectedRevision)
+	})
+}
+
+// DeleteIsolatedIfMatch retains conditional-delete eviction and notifications,
+// without replacing the backend's atomic isolation check with cached reads.
+func (c *CachingStore) DeleteIsolatedIfMatch(id string, expectedRevision int64) error {
+	deleter, ok := IsolatedDeleterFor(c.conditionalBacking())
+	if !ok {
+		return ErrConditionalWriteUnsupported
+	}
+	return c.deleteConditionally(id, func() error {
+		return deleter.DeleteIsolatedIfMatch(id, expectedRevision)
+	})
+}
+
+func (c *CachingStore) deleteConditionally(id string, remove func() error) error {
 	deleted, haveDeleted := c.snapshotBeadBeforeDelete(id)
-	if err := writer.DeleteIfMatch(id, expectedRevision); err != nil {
+	if err := remove(); err != nil {
 		c.applyConditionalWriteFailure(id, err)
 		return err
 	}

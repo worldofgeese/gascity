@@ -120,9 +120,9 @@ The outcome follows from the contract, not from a separate choice:
 
 | Outcome | From | Per-step beads | Root is visible work |
 |---|---|---|---|
-| Single-bead run | v1, no steps (`phase = "vapor"`) | No — steps stay in the recipe | Yes — the root is the work |
+| Single-bead run | No steps, or `phase = "vapor"` without `pour = true` (either contract) | No — steps stay in the recipe | Yes — the root is the work |
 | v1 run with steps | v1 with steps (a *molecule*: container root + step children) | Yes, as children | No — the root is a container |
-| v2 workflow | v2 | Yes, independently routable | No — the root blocks on finalize |
+| v2 workflow | v2, materialized steps | Yes, independently routable | No — the root blocks on finalize |
 
 <Accordion title="Visibility, routing, and cleanup tradeoffs">
 - **Visibility.** Materialized steps are real beads you can list, show, and
@@ -139,13 +139,65 @@ The outcome follows from the contract, not from a separate choice:
   covering v2 workflows too.
 </Accordion>
 
-One rule cuts across all of it: **cook and sling in the store the worker
-reads.** Each rig has its own bead store; the city has one too. Cook
-materializes into the scope you run it from (`--rig` flag, else the enclosing
-rig directory, else the city), and sling refuses a cross-store route with
+One rule cuts across all of it: **use readers for the class being created.**
+Ordinary work follows the selected city or rig scope. Standalone root-only
+runs and graph workflows follow the city's graph-class binding when one is
+configured; without a relocation they use the selected scope's store.
+Sling refuses an unsupported cross-store route with
 `refusing cross-store route`, telling you to re-file the bead or pick a
 reachable target. City-scoped agents are the exception: they are cross-store
 eligible and may serve work in any store.
+
+### Root-only loops
+
+For an agent-executed loop whose instructions remain in the recipe, declare
+`phase = "vapor"` and leave `pour` unset. This also works with the graph
+compiler: the root stays executable, without materializing child steps.
+
+`gc formula cook loop --json` returns `root_id` on success. Check the command's
+exit status and validate that ID before assigning it with
+`gc bd update <root-id> --assignee=<execution>`. Do not pipe a failed cook
+into an ID parser and continue.
+
+Use explicit graph-class discovery on restart:
+
+```bash
+gc wisp list --formula loop --assignee=<execution> --json
+```
+
+The versioned JSON result's `roots` array contains unfinished standalone
+root-only runs, including both storage tiers. Reuse the sole matching root.
+Multiple matches require inspection,
+not another cook or an arbitrary choice. Ordinary `gc bd list` retains its
+work-store behavior. Assignee here identifies the loop's execution, not
+eligibility for shared work.
+
+After successfully creating and assigning the next iteration, retire the
+exact previous root:
+
+```bash
+gc wisp burn <previous-root-id> --formula loop --assignee=<execution> --force
+```
+
+Without `--force`, burn only validates and previews. It deletes one root
+without a digest; it is not close, cascade, or workflow-wide deletion.
+Expanded graphs, attachments, graph members, dependencies, and changed root
+revisions refuse. Isolation is checked again in the deletion's transaction or
+lock: a child or dependency added after preflight is not erased or orphaned by
+the burn. Reads and retirement stay in the selected graph store, without a
+federated cleanup.
+
+Burn requires atomic isolated deletion, not merely revision-matching deletion.
+The SQLite, file, and memory stores implement it, including their cache
+wrappers. A provider without that capability refuses; a `bd`-only graph
+binding is not a supported burn destination. Select a capable graph binding
+without changing where ordinary work is stored. This does not prevent a
+separate writer from adding references after the completed deletion.
+
+These operations do not make creation and assignment atomic. A failed or
+ambiguous cook/assignment, or a restart between next-root creation and
+previous-root retirement, requires inspection before retrying. Do not
+automatically fall back to creating graphs through a work-store `bd` command.
 
 ## Major Use Cases
 

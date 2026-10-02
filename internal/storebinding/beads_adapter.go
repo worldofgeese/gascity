@@ -465,6 +465,14 @@ func (a *beadsGraphAdapter) DeleteIfMatch(id string, expected int64) error {
 	return writer.DeleteIfMatch(id, expected)
 }
 
+func (a *beadsGraphAdapter) DeleteIsolatedIfMatch(id string, expected int64) error {
+	deleter, ok := beads.IsolatedDeleterFor(a.store)
+	if !ok {
+		return unsupportedBeadsCapability("atomic isolated delete")
+	}
+	return deleter.DeleteIsolatedIfMatch(id, expected)
+}
+
 func (a *beadsGraphAdapter) CompareAndSetMetadataKey(id, key, expected, value string) (bool, error) {
 	writer, ok := beads.MetadataCASWriterFor(a.store)
 	if !ok {

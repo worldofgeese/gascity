@@ -401,6 +401,33 @@ func TestWrappedGraphKeepsEveryDeclaredCapability(t *testing.T) {
 	}
 }
 
+func TestWrappedGraphIsolatedDeleteInvalidatesCachedReads(t *testing.T) {
+	adapters := storebindingtest.ReferenceAdapters(storebindingtest.Wrap(t))
+	wrapped, err := storebinding.WrapGraph(adapters.Graph, storebinding.ClassWrapping{
+		Binding: wrappedBindingName, Capability: storebindingtest.ReferenceCapability, CacheReads: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := wrapped.Create(beads.Bead{Title: "isolated root", Type: "task"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err = wrapped.Get(root.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wrapped.DeleteIsolatedIfMatch(root.ID, root.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adapters.Graph.Get(root.ID); !errors.Is(err, beads.ErrNotFound) {
+		t.Fatalf("wrapped delete did not reach its binding: %v", err)
+	}
+	if _, err := wrapped.Get(root.ID); !errors.Is(err, beads.ErrNotFound) {
+		t.Fatalf("wrapped delete left a cached root: %v", err)
+	}
+}
+
 // TestWrappedOrdersRunsRetentionThroughTheStore proves the maintenance path is
 // not merely observable but effective: a swept run is closed in the store the
 // wrapper never reads around.

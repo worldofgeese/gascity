@@ -88,6 +88,7 @@ gc [flags]
 | [gc version](#gc-version) | Print gc version |
 | [gc wait](#gc-wait) | Inspect and manage durable session waits |
 | [gc whoami](#gc-whoami) | Show the authenticated hosted Gas City account |
+| [gc wisp](#gc-wisp) | Class-local root-only formula lifecycle |
 | [gc worktree](#gc-worktree) | Ensure or verify agent workspace worktrees |
 
 ## gc agent
@@ -5212,6 +5213,62 @@ gc whoami [flags]
 |------|------|---------|-------------|
 | `--at` | string |  | service base URL; defaults to GC_SERVICE_URL, the stored default, then https://gascity.com |
 | `--token` | string |  | API token to check; defaults to GC_SERVICE_TOKEN or the stored login |
+
+## gc wisp
+
+Class-local root-only formula lifecycle
+
+```
+gc wisp
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| [gc wisp burn](#gc-wisp-burn) | Delete exactly one standalone root-only formula run, without a digest |
+| [gc wisp list](#gc-wisp-list) | Find unfinished root-only formula runs in the graph-class store |
+
+## gc wisp burn
+
+Burn one exact root in the graph-class store.
+
+Requires matching --formula and --assignee. Only standalone root-only runs are
+supported: expanded graphs, attachments, graph members, and dependencies refuse.
+Never closes the root, cascades to other beads, or sweeps another store.
+The delete atomically checks isolation and the root revision; a provider without
+atomic isolated deletion refuses. SQLite and file stores support this capability.
+Without --force (or with --dry-run), validates and previews without deleting.
+
+```
+gc wisp burn <root-id> [flags]
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--assignee` | string |  | Exact execution assignee (required) |
+| `--dry-run` | bool |  | Validate without deleting |
+| `-f`, `--force` | bool |  | Delete the validated root |
+| `--formula` | string |  | Exact formula name (required) |
+| `--json` | bool |  | Output the result as JSON |
+
+## gc wisp list
+
+Find standalone root-only formula runs for one execution.
+
+Both --formula and --assignee are exact selectors. Closed roots are omitted.
+Reads the same graph-class destination as standalone gc formula cook, including
+vapor graph.v2 runs. Does not search other stores or change gc bd list.
+An unsupported matching graph or unavailable store is an error, not an empty list.
+With --json, prints a versioned result containing a roots array.
+
+```
+gc wisp list [flags]
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--assignee` | string |  | Exact execution assignee (required) |
+| `--formula` | string |  | Exact formula name (required) |
+| `--json` | bool |  | Output a JSON result with a roots array |
 
 ## gc worktree
 

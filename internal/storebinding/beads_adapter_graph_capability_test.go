@@ -67,6 +67,12 @@ func TestBeadsGraphAdapterReportsMissingCapabilities(t *testing.T) {
 	if ok || metadata != "" {
 		t.Fatalf("a vetoed DepMetadata reported (%q, %v), want no payload", metadata, ok)
 	}
+	if err := graph.DeleteIsolatedIfMatch(created.ID, created.Revision); !errors.Is(err, ErrBeadsAdapterCapability) {
+		t.Fatalf("DeleteIsolatedIfMatch without the capability = %v, want ErrBeadsAdapterCapability", err)
+	}
+	if _, err := graph.Get(created.ID); err != nil {
+		t.Fatalf("a vetoed isolated delete changed the target: %v", err)
+	}
 
 	// A veto must not look like a legitimate empty answer. Every one of these
 	// would otherwise be indistinguishable from "nothing is ready", "the

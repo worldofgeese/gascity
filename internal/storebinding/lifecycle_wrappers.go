@@ -214,6 +214,10 @@ func (g *wrappedGraphStore) DeleteIfMatch(id string, revision int64) error {
 	return g.write("DeleteIfMatch", func() error { return g.GraphStore.DeleteIfMatch(id, revision) })
 }
 
+func (g *wrappedGraphStore) DeleteIsolatedIfMatch(id string, revision int64) error {
+	return g.write("DeleteIsolatedIfMatch", func() error { return g.GraphStore.DeleteIsolatedIfMatch(id, revision) })
+}
+
 func (g *wrappedGraphStore) CompareAndSetMetadataKey(id, key, expected, next string) (bool, error) {
 	var swapped bool
 	err := g.mutate(func() error {

@@ -73,6 +73,7 @@ type graphEngine interface {
 	UpdateIfMatch(string, int64, beads.UpdateOpts) error
 	CloseIfMatch(string, int64) error
 	DeleteIfMatch(string, int64) error
+	DeleteIsolatedIfMatch(string, int64) error
 	CompareAndSetMetadataKey(string, string, string, string) (bool, error)
 	Close(string) error
 	Reopen(string) error
@@ -269,6 +270,11 @@ func (f *graphFrontDoor) CloseIfMatch(id string, expected int64) error {
 // DeleteIfMatch deletes a bead only when its revision is unchanged.
 func (f *graphFrontDoor) DeleteIfMatch(id string, expected int64) error {
 	return f.engine.DeleteIfMatch(id, expected)
+}
+
+// DeleteIsolatedIfMatch refuses graph references in the deletion transaction.
+func (f *graphFrontDoor) DeleteIsolatedIfMatch(id string, expected int64) error {
+	return f.engine.DeleteIsolatedIfMatch(id, expected)
 }
 
 // CompareAndSetMetadataKey sets one metadata key only when its current value

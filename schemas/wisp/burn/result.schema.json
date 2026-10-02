@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gc wisp burn result",
+  "type": "object",
+  "required": ["schema_version", "ok", "id", "deleted", "dry_run"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "ok": { "const": true },
+    "id": { "type": "string", "minLength": 1 },
+    "deleted": { "type": "boolean" },
+    "dry_run": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

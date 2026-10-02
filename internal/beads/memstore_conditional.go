@@ -122,3 +122,48 @@ func (m *MemStore) CompareAndSetMetadataKey(id, key, expected, next string) (boo
 	m.beads[i].Revision++
 	return true, nil
 }
+
+// DeleteIsolatedIfMatch checks the entire graph under the mutation lock, so a
+// child or edge cannot land between the isolation check and deletion.
+func (m *MemStore) DeleteIsolatedIfMatch(id string, expectedRevision int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.DisableConditionalWrites {
+		return ErrConditionalWriteUnsupported
+	}
+	i := m.indexOfLocked(id)
+	if i < 0 {
+		return fmt.Errorf("deleting bead %q: %w", id, ErrNotFound)
+	}
+	if m.beads[i].Revision != expectedRevision {
+		return &PreconditionFailedError{ID: id, Expected: expectedRevision, Current: m.beads[i].Revision}
+	}
+	if err := validateIsolatedDeleteTarget(m.beads[i]); err != nil {
+		return err
+	}
+	for _, b := range m.beads {
+		if b.ID == id {
+			continue
+		}
+		if b.ParentID == id {
+			return fmt.Errorf("deleting bead %q: %w (child %s)", id, ErrNotIsolated, b.ID)
+		}
+		for _, key := range isolatedGraphReferenceKeys {
+			if b.Metadata[key] == id {
+				return fmt.Errorf("deleting bead %q: %w (%s on %s)", id, ErrNotIsolated, key, b.ID)
+			}
+		}
+		for _, dep := range b.Dependencies {
+			if dep.IssueID == id || dep.DependsOnID == id {
+				return fmt.Errorf("deleting bead %q: %w (embedded dependency on %s)", id, ErrNotIsolated, b.ID)
+			}
+		}
+	}
+	for _, dep := range m.deps {
+		if dep.IssueID == id || dep.DependsOnID == id {
+			return fmt.Errorf("deleting bead %q: %w (dependency)", id, ErrNotIsolated)
+		}
+	}
+	m.beads = append(m.beads[:i], m.beads[i+1:]...)
+	return nil
+}

@@ -664,6 +664,27 @@ func TestGraphFrontDoorConditionalWritesGateOnRevision(t *testing.T) {
 	}
 }
 
+func TestGraphFrontDoorIsolatedDeletePreservesReferences(t *testing.T) {
+	front := openGraphFrontDoor(t)
+	root := mustCreateGraphBead(t, front, beads.Bead{Title: "root", Type: "task"})
+	child := mustCreateGraphBead(t, front, beads.Bead{Title: "closed child", ParentID: root.ID, Status: "closed"})
+	if err := front.DeleteIsolatedIfMatch(root.ID, root.Revision); !errors.Is(err, beads.ErrNotIsolated) {
+		t.Fatalf("isolated delete with a child = %v", err)
+	}
+	if _, err := front.Get(child.ID); err != nil {
+		t.Fatalf("refused delete changed the child: %v", err)
+	}
+	if err := front.Delete(child.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := front.DeleteIsolatedIfMatch(root.ID, root.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := front.Get(root.ID); !errors.Is(err, beads.ErrNotFound) {
+		t.Fatalf("isolated root remains: %v", err)
+	}
+}
+
 func TestGraphFrontDoorReopenAndCloseAllRoundTrip(t *testing.T) {
 	front := openGraphFrontDoor(t)
 	first := mustCreateGraphBead(t, front, beads.Bead{Title: "one", Type: "task"})
