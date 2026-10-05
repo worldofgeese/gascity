@@ -33,6 +33,35 @@ func ListRootWisps(store storebinding.GraphStore, formula, assignee string) ([]b
 	return roots, nil
 }
 
+// AssignRootWisp assigns an unfinished standalone root in its graph store.
+// An existing assignment to the same execution is idempotent; a different
+// execution or a revision change is a refusal, never a reassignment.
+func AssignRootWisp(store storebinding.GraphStore, id, formula, assignee string) error {
+	if err := validateRootWispSelectors(formula, assignee); err != nil {
+		return err
+	}
+	root, err := rootWispByID(store, id)
+	if err != nil {
+		return err
+	}
+	if root.Status != "open" && root.Status != "in_progress" {
+		return fmt.Errorf("root wisp %q: only unfinished runs can be assigned", id)
+	}
+	if root.Assignee != "" && root.Assignee != assignee {
+		return fmt.Errorf("root wisp %q: already assigned to %q", id, root.Assignee)
+	}
+	if err := validateRootWisp(store, root, formula, root.Assignee); err != nil {
+		return err
+	}
+	if root.Assignee == assignee {
+		return nil
+	}
+	if err := store.UpdateIfMatch(id, root.Revision, beads.UpdateOpts{Assignee: &assignee}); err != nil {
+		return fmt.Errorf("assign root wisp %q: %w", id, err)
+	}
+	return nil
+}
+
 // BurnRootWisp deletes exactly one standalone root-only formula run, without a
 // digest, close, cascade, or search of another store. Shape checks include
 // closed graph members; the deletion atomically checks graph isolation and the
@@ -41,21 +70,10 @@ func BurnRootWisp(store storebinding.GraphStore, id, formula, assignee string, d
 	if err := validateRootWispSelectors(formula, assignee); err != nil {
 		return err
 	}
-	if id == "" || strings.TrimSpace(id) != id {
-		return fmt.Errorf("root wisp: an exact root id is required")
-	}
-	query := beads.ListQuery{IDs: []string{id}, IncludeClosed: true}
-	roots, err := listRootWispRows(store, query)
+	root, err := rootWispByID(store, id)
 	if err != nil {
 		return err
 	}
-	if len(roots) != 1 {
-		if len(roots) == 0 {
-			return fmt.Errorf("root wisp %q: %w in graph store", id, beads.ErrNotFound)
-		}
-		return fmt.Errorf("root wisp %q: graph store returned multiple exact targets", id)
-	}
-	root := roots[0]
 	if err := validateRootWisp(store, root, formula, assignee); err != nil {
 		return err
 	}
@@ -65,7 +83,7 @@ func BurnRootWisp(store storebinding.GraphStore, id, formula, assignee string, d
 	if err := store.DeleteIsolatedIfMatch(id, root.Revision); err != nil {
 		return fmt.Errorf("burn root wisp %q: %w", id, err)
 	}
-	remaining, err := listRootWispRows(store, query)
+	remaining, err := listRootWispRows(store, beads.ListQuery{IDs: []string{id}, IncludeClosed: true})
 	if err != nil {
 		return fmt.Errorf("verify burn of root wisp %q: %w", id, err)
 	}
@@ -73,6 +91,23 @@ func BurnRootWisp(store storebinding.GraphStore, id, formula, assignee string, d
 		return fmt.Errorf("burn root wisp %q: target still exists", id)
 	}
 	return nil
+}
+
+func rootWispByID(store storebinding.GraphStore, id string) (beads.Bead, error) {
+	if id == "" || strings.TrimSpace(id) != id {
+		return beads.Bead{}, fmt.Errorf("root wisp: an exact root id is required")
+	}
+	roots, err := listRootWispRows(store, beads.ListQuery{IDs: []string{id}, IncludeClosed: true})
+	if err != nil {
+		return beads.Bead{}, err
+	}
+	if len(roots) == 0 {
+		return beads.Bead{}, fmt.Errorf("root wisp %q: %w in graph store", id, beads.ErrNotFound)
+	}
+	if len(roots) != 1 {
+		return beads.Bead{}, fmt.Errorf("root wisp %q: graph store returned multiple exact targets", id)
+	}
+	return roots[0], nil
 }
 
 func validateRootWispSelectors(formula, assignee string) error {
@@ -89,8 +124,13 @@ func validateRootWisp(store storebinding.GraphStore, root beads.Bead, formula, a
 	refuse := func(reason string) error {
 		return fmt.Errorf("root wisp %q: %s; only standalone root-only formula runs are supported", root.ID, reason)
 	}
+	// Batch graph creation carries the root identity in gc.step_id, not Ref.
+	stepID := root.Metadata[beadmeta.StepIDMetadataKey]
 	if root.ID == "" || root.Assignee != assignee ||
-		root.Ref != formula || root.Metadata[beadmeta.FormulaNameMetadataKey] != formula {
+		root.Metadata[beadmeta.FormulaNameMetadataKey] != formula ||
+		(root.Ref != "" && root.Ref != formula) ||
+		(stepID != "" && stepID != formula) ||
+		(root.Ref != formula && stepID != formula) {
 		return refuse("formula or execution does not match")
 	}
 	if root.Type != "task" {

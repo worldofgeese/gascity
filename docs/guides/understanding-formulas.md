@@ -156,8 +156,11 @@ compiler: the root stays executable, without materializing child steps.
 
 `gc formula cook loop --json` returns `root_id` on success. Check the command's
 exit status and validate that ID before assigning it with
-`gc bd update <root-id> --assignee=<execution>`. Do not pipe a failed cook
-into an ID parser and continue.
+`gc wisp assign <root-id> --formula loop --assignee=<execution>`.
+Assignment stays in the graph-class store and checks the root revision.
+The same assignment is idempotent; another execution's assignment, a closed
+root, or an unsupported graph shape refuses. Do not pipe a failed cook into
+an ID parser and continue.
 
 Use explicit graph-class discovery on restart:
 

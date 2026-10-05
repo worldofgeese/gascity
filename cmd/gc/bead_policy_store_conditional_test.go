@@ -36,4 +36,12 @@ func TestBeadPolicyStoreResolvesConditionalWritesThroughWrapper(t *testing.T) {
 	if writer == nil {
 		t.Fatal("resolve through policy wrapper returned no writer: the require stamp was hidden by interface embedding")
 	}
+	direct, ok := beads.ConditionalWriterFor(wrapped)
+	if !ok || direct != writer {
+		t.Fatal("hard capability lookup lost the wrapped writer")
+	}
+	unsupported := wrapStoreWithBeadPolicies(&captureCreateStore{Store: result.Store}, nil)
+	if _, ok := beads.ConditionalWriterFor(unsupported); ok {
+		t.Fatal("policy wrapper invented conditional writes for an unsupported backing")
+	}
 }

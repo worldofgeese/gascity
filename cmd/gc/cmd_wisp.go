@@ -24,6 +24,13 @@ type wispBurnJSONResult struct {
 	DryRun        bool   `json:"dry_run"`
 }
 
+type wispAssignJSONResult struct {
+	SchemaVersion string `json:"schema_version"`
+	OK            bool   `json:"ok"`
+	ID            string `json:"id"`
+	Assignee      string `json:"assignee"`
+}
+
 func newWispListCmd(stdout, stderr io.Writer) *cobra.Command {
 	var formula, assignee string
 	var jsonOutput bool
@@ -63,6 +70,45 @@ With --json, prints a versioned result containing a roots array.`,
 	cmd.Flags().StringVar(&formula, "formula", "", "Exact formula name (required)")
 	cmd.Flags().StringVar(&assignee, "assignee", "", "Exact execution assignee (required)")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output a JSON result with a roots array")
+	_ = cmd.MarkFlagRequired("formula")
+	_ = cmd.MarkFlagRequired("assignee")
+	return cmd
+}
+
+func newWispAssignCmd(stdout, stderr io.Writer) *cobra.Command {
+	var formula, assignee string
+	var jsonOutput bool
+	cmd := &cobra.Command{
+		Use:   "assign <root-id>",
+		Short: "Assign one unfinished root-only run in the graph-class store",
+		Long: `Assign an exact standalone root-only run after gc formula cook.
+
+Requires matching --formula and an execution --assignee. An existing assignment
+to that execution succeeds without a write; another assignee refuses.
+Closed roots, expanded graphs, attachments, graph members, and dependencies
+refuse. Assignment checks the observed revision; unsupported providers refuse.
+Never searches another store or changes ordinary work assignment.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			store, err := openRootWispGraphStore(stderr)
+			if err != nil {
+				return formulaCommandError(stderr, "gc wisp assign", jsonOutput, err)
+			}
+			if err := molecule.AssignRootWisp(store, args[0], formula, assignee); err != nil {
+				return formulaCommandError(stderr, "gc wisp assign", jsonOutput, err)
+			}
+			if jsonOutput {
+				return writeCLIJSONLineOrErr(stdout, stderr, "gc wisp assign", wispAssignJSONResult{
+					SchemaVersion: "1", OK: true, ID: args[0], Assignee: assignee,
+				})
+			}
+			_, err = fmt.Fprintf(stdout, "Assigned root wisp %s to %s\n", args[0], assignee)
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&formula, "formula", "", "Exact formula name (required)")
+	cmd.Flags().StringVar(&assignee, "assignee", "", "Exact execution assignee (required)")
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "Output the result as JSON")
 	_ = cmd.MarkFlagRequired("formula")
 	_ = cmd.MarkFlagRequired("assignee")
 	return cmd

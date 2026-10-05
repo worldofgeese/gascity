@@ -19,6 +19,7 @@ func newWispCmd(stdout, stderr io.Writer) *cobra.Command {
 		Short: "Class-local root-only formula lifecycle",
 	}
 	cmd.AddCommand(newWispListCmd(stdout, stderr))
+	cmd.AddCommand(newWispAssignCmd(stdout, stderr))
 	cmd.AddCommand(newWispBurnCmd(stdout, stderr))
 	cmd.AddCommand(newWispAutocloseCmd(stdout, stderr))
 	return cmd

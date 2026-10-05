@@ -155,6 +155,7 @@ go_library(
         "schemas/beads/city/migrate-proxied/result.schema.json",
         "schemas/wisp/burn/result.schema.json",
         "schemas/wisp/list/result.schema.json",
+        "schemas/wisp/assign/result.schema.json",
     ],
     importpath = "github.com/gastownhall/gascity",
     visibility = ["//visibility:public"],

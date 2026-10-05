@@ -10,7 +10,20 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "issue_type", "assignee", "ref", "metadata"],
+        "required": ["id", "issue_type", "assignee", "metadata"],
+        "anyOf": [
+          { "required": ["ref"] },
+          {
+            "properties": {
+              "metadata": {
+                "required": ["gc.step_id"],
+                "properties": {
+                  "gc.step_id": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        ],
         "properties": {
           "id": { "type": "string", "minLength": 1 },
           "issue_type": { "const": "task" },

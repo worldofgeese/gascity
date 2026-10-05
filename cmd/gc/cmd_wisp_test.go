@@ -60,20 +60,39 @@ needs = ["first"]
 `), 0o644); err != nil {
 					t.Fatal(err)
 				}
-				var graph beads.Store
 				if split {
-					graph = splittest.NewClassStore(t, config.BeadClassGraph)
-					seedCLIStorageRoutes(t, cityDir, messagingSplitRoutes(graph))
-				} else {
-					seedCLIStorageRoutes(t, cityDir, nil)
+					configPath := filepath.Join(cityDir, "city.toml")
+					body, err := os.ReadFile(configPath)
+					if err != nil {
+						t.Fatal(err)
+					}
+					body = append(body, []byte(`
+[storage.classes]
+work = "work"
+graph = "infra"
+sessions = "infra"
+messaging = "infra"
+orders = "infra"
+nudges = "infra"
+
+[storage.bindings.infra]
+provider = "sqlite-beads"
+path = ".gc/store"
+`)...)
+					if err := os.WriteFile(configPath, body, 0o644); err != nil {
+						t.Fatal(err)
+					}
 				}
+				resetCLIStorageRoutes(t)
 				work, err := openStoreAtForCity(cityDir, cityDir)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if graph == nil {
-					graph = work
+				cfg, err := loadCityConfigWithoutBuiltinPackRefresh(cityDir, &bytes.Buffer{})
+				if err != nil {
+					t.Fatal(err)
 				}
+				graph := resolveGraphStore(cliStorageRoutes(cityDir), work, cfg, cityDir, nil)
 				shared, err := work.Create(beads.Bead{Title: "ordinary shared work", Type: "task", Assignee: "seat-1"})
 				if err != nil {
 					t.Fatal(err)
@@ -83,9 +102,11 @@ needs = ["first"]
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := graph.Update(root.ID, beads.UpdateOpts{Assignee: &shared.Assignee}); err != nil {
-					t.Fatal(err)
+				assigned, stderr, err := runRootWispCommand("assign", root.ID, "--formula", formula, "--assignee", "seat-1", "--json")
+				if err != nil {
+					t.Fatalf("graph-class assignment: %v\n%s", err, stderr)
 				}
+				validateJSONAgainstResultSchema(t, []string{"wisp", "assign"}, []byte(assigned))
 				for range 2 {
 					out, stderr, err := runRootWispCommand("list", "--formula", formula, "--assignee", "seat-1", "--json")
 					if err != nil {
@@ -158,9 +179,14 @@ func TestWispNeverSearchesForeignWorkStore(t *testing.T) {
 	if found := parseRootWispList(t, out); len(found) != 0 {
 		t.Fatalf("lookup found foreign work-store root: %v", found)
 	}
-	out, stderr, err = runRootWispCommand("burn", foreign.ID, "--formula", "vapor-work", "--assignee", "seat-1", "--force")
-	if err == nil || out != "" {
-		t.Fatalf("foreign-store burn did not refuse: %q, %v\n%s", out, err, stderr)
+	for _, args := range [][]string{
+		{"assign", foreign.ID, "--formula", "vapor-work", "--assignee", "seat-1"},
+		{"burn", foreign.ID, "--formula", "vapor-work", "--assignee", "seat-1", "--force"},
+	} {
+		out, stderr, err = runRootWispCommand(args...)
+		if err == nil || out != "" {
+			t.Fatalf("foreign-store operation %q did not refuse: %q, %v\n%s", args, out, err, stderr)
+		}
 	}
 	if got, err := work.Get(foreign.ID); err != nil || !reflect.DeepEqual(got, foreign) {
 		t.Fatalf("foreign root changed: %+v, %v", got, err)
@@ -173,6 +199,7 @@ func TestWispStorageRefusalIsNotEmptyLookup(t *testing.T) {
 	seedCLIStorageRoutes(t, cityDir, refusingStorageRoutes("local", refusal))
 	for _, args := range [][]string{
 		{"list", "--formula", "vapor-work", "--assignee", "seat-1", "--json"},
+		{"assign", "gcg-1", "--formula", "vapor-work", "--assignee", "seat-1"},
 		{"burn", "gcg-1", "--formula", "vapor-work", "--assignee", "seat-1", "--force"},
 	} {
 		out, stderr, err := runRootWispCommand(args...)
@@ -187,6 +214,9 @@ func TestWispRequiresExplicitSelectors(t *testing.T) {
 		{"list"},
 		{"list", "--formula", "loop"},
 		{"list", "--assignee", "seat-1"},
+		{"assign", "gcg-1"},
+		{"assign", "gcg-1", "--formula", "loop"},
+		{"assign", "gcg-1", "--assignee", "seat-1"},
 		{"burn", "gcg-1", "--force"},
 		{"burn", "gcg-1", "--formula", "loop", "--force"},
 		{"burn", "gcg-1", "--assignee", "seat-1", "--force"},

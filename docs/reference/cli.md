@@ -5224,8 +5224,29 @@ gc wisp
 
 | Subcommand | Description |
 |------------|-------------|
+| [gc wisp assign](#gc-wisp-assign) | Assign one unfinished root-only run in the graph-class store |
 | [gc wisp burn](#gc-wisp-burn) | Delete exactly one standalone root-only formula run, without a digest |
 | [gc wisp list](#gc-wisp-list) | Find unfinished root-only formula runs in the graph-class store |
+
+## gc wisp assign
+
+Assign an exact standalone root-only run after gc formula cook.
+
+Requires matching --formula and an execution --assignee. An existing assignment
+to that execution succeeds without a write; another assignee refuses.
+Closed roots, expanded graphs, attachments, graph members, and dependencies
+refuse. Assignment checks the observed revision; unsupported providers refuse.
+Never searches another store or changes ordinary work assignment.
+
+```
+gc wisp assign <root-id> [flags]
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--assignee` | string |  | Exact execution assignee (required) |
+| `--formula` | string |  | Exact formula name (required) |
+| `--json` | bool |  | Output the result as JSON |
 
 ## gc wisp burn
 

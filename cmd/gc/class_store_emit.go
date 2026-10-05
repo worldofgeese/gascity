@@ -606,6 +606,19 @@ func (s *emittingClassStore) NamespaceCensusHandle() (beads.NamespaceCensus, boo
 	return beads.NamespaceCensusFor(s.Store)
 }
 
+func (s *emittingClassStore) DeleteIsolatedIfMatch(id string, revision int64) error {
+	deleter, ok := beads.IsolatedDeleterFor(s.Store)
+	if !ok {
+		return beads.ErrConditionalWriteUnsupported
+	}
+	snapshots := s.snapshotBeforeDelete(id)
+	if err := deleter.DeleteIsolatedIfMatch(id, revision); err != nil {
+		return err
+	}
+	s.emitDeleted(snapshots)
+	return nil
+}
+
 func (s *emittingClassStore) DeleteIfMatch(id string, revision int64) error {
 	writer, ok := beads.ConditionalWriterFor(s.Store)
 	if !ok {

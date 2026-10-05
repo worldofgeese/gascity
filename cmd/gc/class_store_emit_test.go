@@ -492,32 +492,55 @@ func TestClassStoreEmissionPromotesToClosedOnlyOnTheTransition(t *testing.T) {
 // Create and delete are the other two lifecycle edges a fold needs. Delete has
 // to carry the PRE-delete snapshot, because there is nothing to read after.
 func TestClassStoreEmissionCoversCreateAndDelete(t *testing.T) {
-	cityPath := t.TempDir()
-	leaf := beads.NewMemStore()
-	routes := splitClassRoutes(leaf).withCLIEmission(cityPath)
-	store := resolveGraphStore(routes, beads.NewMemStore(), nil, cityPath, nil)
+	for _, isolated := range []bool{false, true} {
+		t.Run(fmt.Sprintf("isolated=%t", isolated), func(t *testing.T) {
+			cityPath := t.TempDir()
+			leaf := beads.NewMemStore()
+			routes := splitClassRoutes(leaf).withCLIEmission(cityPath)
+			store := resolveGraphStore(routes, beads.NewMemStore(), nil, cityPath, nil)
 
-	created, err := store.Create(beads.Bead{Title: "fresh", Type: "task", Status: "open"})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	if err := store.Delete(created.ID); err != nil {
-		t.Fatalf("delete: %v", err)
-	}
+			created, err := store.Create(beads.Bead{Title: "fresh", Type: "task", Status: "open"})
+			if err != nil {
+				t.Fatalf("create: %v", err)
+			}
+			if isolated {
+				deleter, ok := beads.IsolatedDeleterFor(store)
+				if !ok {
+					t.Fatal("emitting store lost atomic isolated deletion")
+				}
+				if err := leaf.SetMetadata(created.ID, "probe", "changed"); err != nil {
+					t.Fatal(err)
+				}
+				if err := deleter.DeleteIsolatedIfMatch(created.ID, created.Revision); !beads.IsPreconditionFailed(err) {
+					t.Fatalf("stale isolated delete = %v, want a conflict without an event", err)
+				}
+				current, readErr := leaf.Get(created.ID)
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
+				err = deleter.DeleteIsolatedIfMatch(created.ID, current.Revision)
+			} else {
+				err = store.Delete(created.ID)
+			}
+			if err != nil {
+				t.Fatalf("delete: %v", err)
+			}
 
-	got := beadEvents(readCityJournal(t, cityPath))
-	if len(got) != 2 {
-		t.Fatalf("got %d bead event(s), want 2: %s", len(got), eventSummary(got))
-	}
-	if got[0].Type != events.BeadCreated || got[0].Subject != created.ID {
-		t.Errorf("first event = %q/%q, want %q/%q", got[0].Type, got[0].Subject, events.BeadCreated, created.ID)
-	}
-	if got[1].Type != events.BeadDeleted || got[1].Subject != created.ID {
-		t.Errorf("second event = %q/%q, want %q/%q", got[1].Type, got[1].Subject, events.BeadDeleted, created.ID)
-	}
-	snapshot, ok := beads.DecodeBeadEventPayload(got[1].Payload)
-	if !ok || snapshot.Title != "fresh" {
-		t.Errorf("bead.deleted payload = %s, want the pre-delete snapshot", got[1].Payload)
+			got := beadEvents(readCityJournal(t, cityPath))
+			if len(got) != 2 {
+				t.Fatalf("got %d bead event(s), want 2: %s", len(got), eventSummary(got))
+			}
+			if got[0].Type != events.BeadCreated || got[0].Subject != created.ID {
+				t.Errorf("first event = %q/%q, want %q/%q", got[0].Type, got[0].Subject, events.BeadCreated, created.ID)
+			}
+			if got[1].Type != events.BeadDeleted || got[1].Subject != created.ID {
+				t.Errorf("second event = %q/%q, want %q/%q", got[1].Type, got[1].Subject, events.BeadDeleted, created.ID)
+			}
+			snapshot, ok := beads.DecodeBeadEventPayload(got[1].Payload)
+			if !ok || snapshot.Title != "fresh" {
+				t.Errorf("bead.deleted payload = %s, want the pre-delete snapshot", got[1].Payload)
+			}
+		})
 	}
 }
 

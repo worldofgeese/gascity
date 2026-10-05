@@ -88,6 +88,80 @@ func TestRootWispListExactActiveExecution(t *testing.T) {
 	}
 }
 
+func TestRootWispListFormulaIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name, ref, step string
+		valid           bool
+	}{
+		{"sequential root", "loop", "", true},
+		{"batch root", "", "loop", true},
+		{"matching identities", "loop", "loop", true},
+		{"conflicting ref", "another-loop", "loop", false},
+		{"conflicting step", "loop", "loop.child", false},
+		{"no root identity", "", "", false},
+		{"child identity", "", "loop.child", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store, graph := rootWispStore(t)
+			root, err := store.Create(beads.Bead{
+				Title: "root", Type: "task", Ref: tc.ref, Assignee: "seat-1",
+				Metadata: map[string]string{
+					beadmeta.KindMetadataKey:        beadmeta.KindWisp,
+					beadmeta.FormulaNameMetadataKey: "loop",
+					beadmeta.StepIDMetadataKey:      tc.step,
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			roots, err := ListRootWisps(graph, "loop", "seat-1")
+			if tc.valid {
+				if err != nil || len(roots) != 1 || roots[0].ID != root.ID {
+					t.Fatalf("valid root identity not found: %v, %v", roots, err)
+				}
+			} else if err == nil {
+				t.Fatalf("unsupported root identity was accepted: %v", roots)
+			}
+		})
+	}
+}
+
+func TestRootWispAssignUnassignedAndNeverSteal(t *testing.T) {
+	store, graph := rootWispStore(t)
+	root := seedRootWisp(t, store, "local-1", beadmeta.KindWisp)
+	requireWispUpdate(t, store, root.ID, beads.UpdateOpts{Assignee: strp("")})
+	if err := AssignRootWisp(graph, root.ID, "loop", "seat-1"); err != nil {
+		t.Fatal(err)
+	}
+	assigned, err := store.Get(root.ID)
+	if err != nil || assigned.Assignee != "seat-1" {
+		t.Fatalf("assignment = %+v, %v", assigned, err)
+	}
+	for _, assignee := range []string{"seat-1", "seat-2"} {
+		err := AssignRootWisp(graph, root.ID, "loop", assignee)
+		if (err == nil) != (assignee == "seat-1") {
+			t.Fatalf("assign to %q = %v", assignee, err)
+		}
+		got, err := store.Get(root.ID)
+		if err != nil || !reflect.DeepEqual(got, assigned) {
+			t.Fatalf("repeat or refused assignment changed root: %+v, %v", got, err)
+		}
+	}
+	if err := store.Close(root.ID); err != nil {
+		t.Fatal(err)
+	}
+	closed, err := store.Get(root.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := AssignRootWisp(graph, root.ID, "loop", "seat-1"); err == nil {
+		t.Fatal("closed root assignment succeeded")
+	}
+	if got, err := store.Get(root.ID); err != nil || !reflect.DeepEqual(got, closed) {
+		t.Fatalf("refused assignment changed closed root: %+v, %v", got, err)
+	}
+}
+
 func TestRootWispBurnOnlyExactTargetWithoutDigest(t *testing.T) {
 	for _, kind := range []string{beadmeta.KindWisp, beadmeta.KindWorkflow} {
 		t.Run(kind, func(t *testing.T) {
@@ -188,6 +262,9 @@ func TestRootWispRefusesUnsupportedShapes(t *testing.T) {
 			if _, err := ListRootWisps(graph, "loop", "seat-1"); err == nil {
 				t.Fatal("lookup hid an unsupported existing root instead of refusing")
 			}
+			if err := AssignRootWisp(graph, root.ID, "loop", "seat-1"); err == nil {
+				t.Fatal("unsupported shape was assigned")
+			}
 			if err := BurnRootWisp(graph, root.ID, "loop", "seat-1", false); err == nil {
 				t.Fatal("unsupported shape was burned")
 			}
@@ -206,7 +283,7 @@ func requireWispUpdate(t *testing.T, store beads.Store, id string, opts beads.Up
 	}
 }
 
-func TestRootWispBurnRequiresExactSelectors(t *testing.T) {
+func TestRootWispRequiresExactSelectors(t *testing.T) {
 	store, graph := rootWispStore(t)
 	root := seedRootWisp(t, store, "local-123", beadmeta.KindWisp)
 	for _, args := range [][3]string{
@@ -217,6 +294,9 @@ func TestRootWispBurnRequiresExactSelectors(t *testing.T) {
 		{root.ID, "loop", ""},
 		{"", "loop", "seat-1"},
 	} {
+		if err := AssignRootWisp(graph, args[0], args[1], args[2]); err == nil {
+			t.Fatalf("invalid assignment selectors accepted: %q", args)
+		}
 		if err := BurnRootWisp(graph, args[0], args[1], args[2], false); err == nil {
 			t.Fatalf("invalid selectors accepted: %q", args)
 		}
@@ -265,6 +345,50 @@ func (s rootWispFaultGraph) DeleteIsolatedIfMatch(id string, revision int64) err
 		return s.deleteErr
 	}
 	return s.GraphStore.DeleteIsolatedIfMatch(id, revision)
+}
+
+func (s rootWispFaultGraph) UpdateIfMatch(id string, revision int64, opts beads.UpdateOpts) error {
+	if s.before != nil {
+		s.before()
+	}
+	return s.GraphStore.UpdateIfMatch(id, revision, opts)
+}
+
+func TestRootWispAssignRefusesChangedOrUnsupportedWriter(t *testing.T) {
+	for _, changed := range []bool{false, true} {
+		t.Run(map[bool]string{false: "unsupported", true: "changed"}[changed], func(t *testing.T) {
+			store, graph := rootWispStore(t)
+			root := seedRootWisp(t, store, "local-1", beadmeta.KindWisp)
+			requireWispUpdate(t, store, root.ID, beads.UpdateOpts{Assignee: strp("")})
+			before, err := store.Get(root.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fault := rootWispFaultGraph{GraphStore: graph}
+			if changed {
+				fault.before = func() {
+					requireWispUpdate(t, store, root.ID, beads.UpdateOpts{Assignee: strp("seat-2")})
+					before, err = store.Get(root.ID)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+			} else {
+				store.DisableConditionalWrites = true
+			}
+			err = AssignRootWisp(fault, root.ID, "loop", "seat-1")
+			if changed && !beads.IsPreconditionFailed(err) {
+				t.Fatalf("changed assignment = %v, want revision conflict", err)
+			}
+			if !changed && !errors.Is(err, beads.ErrConditionalWriteUnsupported) {
+				t.Fatalf("unsupported writer = %v", err)
+			}
+			after, err := store.Get(root.ID)
+			if err != nil || !reflect.DeepEqual(before, after) {
+				t.Fatalf("refused assignment changed root: %+v, %v", after, err)
+			}
+		})
+	}
 }
 
 func TestRootWispBurnFailuresAndDryRun(t *testing.T) {

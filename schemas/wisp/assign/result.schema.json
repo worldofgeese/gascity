@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gc wisp assign result",
+  "type": "object",
+  "required": ["schema_version", "ok", "id", "assignee"],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "ok": { "const": true },
+    "id": { "type": "string", "minLength": 1 },
+    "assignee": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}
