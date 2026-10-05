@@ -1094,6 +1094,10 @@
           ],
           "description": "GuardedRelease selects the ownership-release discipline for work beads:\n\"off\" (legacy, owner-blind bd update/unclaim), \"auto\" (fence-guarded\nrelease verbs where the bd binary is capable, loud degrade otherwise), or\n\"require\" (guarded release or a typed refusal). Empty defaults to \"off\".\nAny other value fails config load."
         },
+        "shared_work": {
+          "$ref": "#/$defs/SharedWorkConfig",
+          "description": "SharedWork opts into a shared pool with immutable execution grants.\nUnsupported stores refuse this mode; absence preserves legacy scheduling."
+        },
         "policies": {
           "additionalProperties": {
             "$ref": "#/$defs/BeadPolicyConfig"
@@ -2929,6 +2933,32 @@
       "additionalProperties": false,
       "type": "object",
       "description": "SessionSleepConfig configures default idle sleep policies by session class."
+    },
+    "SharedWorkConfig": {
+      "properties": {
+        "rig": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        },
+        "lease": {
+          "type": "string",
+          "default": "2m"
+        },
+        "max_active": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "rig",
+        "template"
+      ],
+      "description": "SharedWorkConfig deliberately selects execution-authority-based scheduling."
     },
     "StorageBindingConfig": {
       "properties": {

@@ -218,7 +218,15 @@
               "worktree-verify",
               "storage-preflight",
               "nudge-drop",
-              "beads-city-migrate-proxied"
+              "beads-city-migrate-proxied",
+              "work-comment",
+              "work-complete",
+              "work-reclaim",
+              "work-release",
+              "work-renew",
+              "work-run-once",
+              "work-show",
+              "work-update"
             ]
           },
           "event_id": {

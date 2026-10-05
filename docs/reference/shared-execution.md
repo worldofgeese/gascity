@@ -1,4 +1,6 @@
-# Shared-work execution authority
+---
+title: "Shared-Work Execution Authority"
+---
 
 Shared-work mode gives each successful acquisition one fresh execution grant.
 The controller uses that grant to start one worker, renew its lease, and fence

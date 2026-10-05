@@ -272,13 +272,29 @@ func TestSharedWorkCapacityAndOneShotRefusal(t *testing.T) {
 				}
 				tasks = append(tasks, task)
 			}
+			// Compare persisted state: decoded times lack the monotonic reading
+			// that Create left in memory, so in-memory copies are not comparable.
+			persisted := func(id string) (beads.Bead, error) {
+				store, err := beads.OpenFileStore(fsys.OSFS{}, filepath.Join(rig, "work.json"))
+				if err != nil {
+					return beads.Bead{}, err
+				}
+				return store.Get(id)
+			}
+			for i, task := range tasks {
+				saved, err := persisted(task.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				tasks[i] = saved
+			}
 			first, err := cr.sharedWorkTick(context.Background())
 			if oneShot {
 				if err == nil || !strings.Contains(err.Error(), "long-lived") || len(first.Launched) != 0 || sharedRuntimeStartCount(provider) != 0 {
 					t.Fatalf("one-shot provider was not refused before launch: %+v, %v", first, err)
 				}
 				for _, task := range tasks {
-					got, err := work.Get(task.ID)
+					got, err := persisted(task.ID)
 					if err != nil || !reflect.DeepEqual(task, got) {
 						t.Fatalf("one-shot refusal changed ready work: %+v, %v", got, err)
 					}

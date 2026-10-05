@@ -90,7 +90,13 @@ func TestSharedExecutionFileSaveFailureRollsBackWholeTransition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before, _ := work.Get(b.ID)
+	// Read the baseline as persisted: every transition reloads from disk first,
+	// and decoded times lack the monotonic reading the in-memory Create kept.
+	persisted, err := OpenFileStore(fs, "city/work.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _ := persisted.Get(b.ID)
 	injected := errors.New("disk unavailable")
 	fs.Errors["city/work.json.tmp"] = injected
 	grant, won, err := work.AcquireExecution(b.ID, ExecutionOwner{CityID: "a"}, time.Minute)

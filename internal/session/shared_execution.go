@@ -10,6 +10,7 @@ import (
 	"github.com/gastownhall/gascity/internal/beads"
 )
 
+// SharedExecutionOrigin is the session_origin of sessions started for a shared-work grant.
 const (
 	SharedExecutionOrigin        = "shared-execution"
 	sharedExecutionIDMetadataKey = "shared_execution_id"
@@ -41,6 +42,7 @@ func (info Info) IsSharedExecution() bool {
 		info.SharedExecutionID != "" || info.SharedWorkID != "" || info.SharedWorkScope != ""
 }
 
+// ExecutionGrant returns the session's original grant; it fails if the binding is incomplete.
 func (info Info) ExecutionGrant() (beads.ExecutionGrant, error) {
 	grant := beads.ExecutionGrant{BeadID: info.SharedWorkID, ID: info.SharedExecutionID}
 	if info.SharedWorkScope == "" || strings.TrimSpace(info.SharedWorkScope) != info.SharedWorkScope {

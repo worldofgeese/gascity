@@ -2,6 +2,7 @@ package beads
 
 import "time"
 
+// SharedExecutionHandle wraps the backing store's authority; each transition evicts the cached bead and emits a change event.
 func (c *CachingStore) SharedExecutionHandle() (SharedExecutionStore, error) {
 	authority, err := ResolveSharedExecutionStore(c.backing)
 	if err != nil {

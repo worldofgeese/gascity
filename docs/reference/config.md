@@ -299,6 +299,7 @@ BeadsConfig holds bead store settings.
 | `bd_compatibility` | string |  |  | BDCompatibility selects the bd CLI semantics Gas City may rely on. Empty defaults to "bd-1.0.4", which keeps claimable work history-backed and avoids bd ready/list flags that are unavailable or incomplete in bd 1.0.4. Enum: `bd-1.0.4`, `bd-1.0.5` |
 | `conditional_writes` | string |  |  | ConditionalWrites selects the bead-write discipline: "off" (legacy, byte-identical), "auto" (compare-and-swap where the store is capable, loud degrade otherwise), or "require" (CAS or a typed refusal). Empty defaults to "off". Any other value fails config load. Enum: `off`, `auto`, `require` |
 | `guarded_release` | string |  |  | GuardedRelease selects the ownership-release discipline for work beads: "off" (legacy, owner-blind bd update/unclaim), "auto" (fence-guarded release verbs where the bd binary is capable, loud degrade otherwise), or "require" (guarded release or a typed refusal). Empty defaults to "off". Any other value fails config load. Enum: `off`, `auto`, `require` |
+| `shared_work` | SharedWorkConfig |  |  | SharedWork opts into a shared pool with immutable execution grants. Unsupported stores refuse this mode; absence preserves legacy scheduling. |
 | `policies` | map[string]BeadPolicyConfig |  |  | Policies defines per-bead-use storage and garbage-collection defaults. Policy names are interpreted by higher-level systems; unknown names are preserved so packs can stage future policy classes without breaking load. |
 
 ## ChatSessionsConfig
@@ -856,6 +857,17 @@ SessionSleepConfig configures default idle sleep policies by session class.
 | `interactive_resume` | string |  |  | InteractiveResume applies to attachable sessions using wake_mode=resume. Accepts a duration string or "off". |
 | `interactive_fresh` | string |  |  | InteractiveFresh applies to attachable sessions using wake_mode=fresh. Accepts a duration string or "off". |
 | `noninteractive` | string |  |  | NonInteractive applies to sessions with attach=false. Accepts a duration string or "off". |
+
+## SharedWorkConfig
+
+SharedWorkConfig deliberately selects execution-authority-based scheduling.
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `rig` | string | **yes** |  |  |
+| `template` | string | **yes** |  |  |
+| `lease` | string |  | `2m` |  |
+| `max_active` | integer |  | `1` |  |
 
 ## StorageBindingConfig
 

@@ -16,6 +16,7 @@ type SharedWorkConfig struct {
 	MaxActive int    `toml:"max_active,omitempty" jsonschema:"default=1,minimum=1"`
 }
 
+// LeaseDuration returns the lease TTL (default 2m), bounded to 1s..24h.
 func (s SharedWorkConfig) LeaseDuration() (time.Duration, error) {
 	raw := s.Lease
 	if raw == "" {
@@ -28,6 +29,7 @@ func (s SharedWorkConfig) LeaseDuration() (time.Duration, error) {
 	return ttl, nil
 }
 
+// ActiveLimit returns MaxActive, defaulting to 1.
 func (s SharedWorkConfig) ActiveLimit() int {
 	if s.MaxActive == 0 {
 		return 1
@@ -35,6 +37,7 @@ func (s SharedWorkConfig) ActiveLimit() int {
 	return s.MaxActive
 }
 
+// Validate requires an exact rig and template, a non-negative MaxActive and a valid lease.
 func (s SharedWorkConfig) Validate() error {
 	if strings.TrimSpace(s.Rig) == "" || s.Rig != strings.TrimSpace(s.Rig) ||
 		strings.TrimSpace(s.Template) == "" || s.Template != strings.TrimSpace(s.Template) {

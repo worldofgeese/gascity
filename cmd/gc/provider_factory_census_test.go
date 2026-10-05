@@ -38,13 +38,14 @@ var canonicalProviderResultSources = map[string]bool{
 	"withSessionProviderConstructionContext":      true,
 }
 
-// These three mutable seams are intentional test seams. Any additional alias
+// These four mutable seams are intentional test seams. Any additional alias
 // expands the construction surface and must fail review rather than silently
 // inheriting permission to forward a provider-construction error.
 var canonicalProviderAliasBindings = map[string]int{
 	"cmd_convoy_dispatch.go:<package>:dispatchControlSessionProvider=newSessionProvider": 1,
 	"cmd_rig.go:<package>:rigListSessionProvider=newSessionProvider":                     1,
 	"cmd_stop.go:<package>:sessionProviderForStopCity=newSessionProviderForCity":         1,
+	"cmd_work.go:<package>:sharedWorkCommandProvider=newSessionProvider":                 1,
 }
 
 // Every production construction call is pinned together with its result
@@ -84,6 +85,7 @@ var canonicalProviderCalls = map[string]int{
 	"cmd_status.go:cmdRigStatus:newStatusSessionProviderForCityWithSnapshot:bind-error":                                                        1,
 	"cmd_stop.go:cmdStopBodyWithoutSuccess:sessionProviderForStopCity:bind-error":                                                              1,
 	"cmd_supervisor.go:startOneCity:newSessionProviderFromContext:bind-error":                                                                  1,
+	"cmd_work.go:newSharedWorkCmd:sharedWorkCommandProvider:bind-error":                                                                        1,
 	"completion.go:loadSessionsForCompletion:newSessionProviderFromContext:bind-error":                                                         1,
 	"providers.go:newSessionProvider:newSessionProviderFromContext:forward-to-withSessionProviderConstructionContext":                          1,
 	"providers.go:newSessionProvider:withSessionProviderConstructionContext:forward-return":                                                    1,
