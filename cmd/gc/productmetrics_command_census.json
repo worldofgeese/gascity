@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "next_id": 209,
+  "next_id": 212,
   "permanent_ids": [
     {
       "name": "help",
@@ -4485,16 +4485,32 @@
       "path": "gc wisp",
       "aliases": [],
       "conditional_modes": [],
-      "hidden": true,
-      "effective_hidden": true,
+      "hidden": false,
+      "effective_hidden": false,
       "disable_flag_parsing": false,
       "shape": "structural",
-      "classification": "excluded",
-      "notice_policy": "ineligible",
-      "recording_policy": "excluded",
-      "owner": "excluded",
-      "mode": "hidden-private",
-      "exclusion": "hidden-private"
+      "recording_policy": "recordable",
+      "mode": "standard",
+      "notice_policy": "eligible",
+      "classification": "help",
+      "canonical_target": "@help",
+      "owner": "structural",
+      "id": 1
+    },
+    {
+      "path": "gc wisp assign",
+      "aliases": [],
+      "conditional_modes": [],
+      "hidden": false,
+      "effective_hidden": false,
+      "disable_flag_parsing": false,
+      "shape": "runnable",
+      "recording_policy": "recordable",
+      "mode": "standard",
+      "notice_policy": "eligible",
+      "classification": "wisp-assign",
+      "owner": "immediate",
+      "id": 209
     },
     {
       "path": "gc wisp autoclose",
@@ -4510,6 +4526,36 @@
       "owner": "excluded",
       "mode": "hidden-private",
       "exclusion": "hidden-private"
+    },
+    {
+      "path": "gc wisp burn",
+      "aliases": [],
+      "conditional_modes": [],
+      "hidden": false,
+      "effective_hidden": false,
+      "disable_flag_parsing": false,
+      "shape": "runnable",
+      "recording_policy": "recordable",
+      "mode": "standard",
+      "notice_policy": "eligible",
+      "classification": "wisp-burn",
+      "owner": "immediate",
+      "id": 210
+    },
+    {
+      "path": "gc wisp list",
+      "aliases": [],
+      "conditional_modes": [],
+      "hidden": false,
+      "effective_hidden": false,
+      "disable_flag_parsing": false,
+      "shape": "runnable",
+      "recording_policy": "recordable",
+      "mode": "standard",
+      "notice_policy": "eligible",
+      "classification": "wisp-list",
+      "owner": "immediate",
+      "id": 211
     },
     {
       "path": "gc workflow",
