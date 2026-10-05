@@ -357,6 +357,7 @@ func newRootCmdWithOptions(stdout, stderr io.Writer, options rootCommandOptions)
 		newDoctorCmd(stdout, stderr),
 		newHookCmd(stdout, stderr),
 		newReadyCmd(stdout, stderr),
+		newSharedWorkCmd(stdout, stderr),
 		newSlingCmd(stdout, stderr),
 		newConvoyCmd(stdout, stderr),
 		newWispCmd(stdout, stderr),
@@ -1760,6 +1761,12 @@ func openStoreResultAtForCityScoped(storePath, cityPath string, cfg *config.City
 				runtimeCityPath, conditionalWritesStoreID(scopeRoot, runtimeCityPath), flags, resolved)
 		}(),
 		OpenFileStore: func() (beads.Store, error) {
+			// Shared mode must not use the legacy file-layout alias that maps
+			// every rig to this city's personal work ledger. Require the common
+			// rig's existing native store, regardless of the city's old layout.
+			if sharedRoot := sharedWorkRigRoot(runtimeCityPath, cfg); sharedRoot != "" && samePath(scopeRoot, sharedRoot) {
+				return openExistingScopeLocalFileStore(scopeRoot, runtimeCityPath)
+			}
 			return openCompatibleFileStore(scopeRoot, runtimeCityPath)
 		},
 		OpenBdStore: openBd,

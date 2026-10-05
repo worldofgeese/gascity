@@ -18,10 +18,11 @@ import (
 type MemStore struct {
 	condWritesStamp
 
-	mu    sync.Mutex
-	beads []Bead
-	deps  []Dep
-	seq   int
+	mu           sync.Mutex
+	beads        []Bead
+	deps         []Dep
+	seq          int
+	executionNow func() time.Time
 
 	// DisableConditionalWrites makes the ConditionalWriter methods return
 	// ErrConditionalWriteUnsupported while leaving every other interface intact,

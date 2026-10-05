@@ -88,7 +88,7 @@ func (h *SessionHandle) Create(ctx context.Context, mode CreateMode) (info sessi
 
 	switch mode {
 	case CreateModeDeferred:
-		info, err = h.createDeferredLocked()
+		info, err = h.createDeferredLocked(ctx)
 		return info, err
 	case CreateModeStarted:
 		info, err = h.createStartedLocked(ctx)
@@ -410,15 +410,15 @@ func (h *SessionHandle) ensureSessionID() (string, error) {
 	if h.sessionID != "" {
 		return h.sessionID, nil
 	}
-	info, err := h.createDeferredLocked()
+	info, err := h.createDeferredLocked(context.Background())
 	if err != nil {
 		return "", err
 	}
 	return info.ID, nil
 }
 
-func (h *SessionHandle) createDeferredLocked() (sessionpkg.Info, error) {
-	info, err := h.manager.CreateSession(context.Background(), sessionpkg.CreateOptions{
+func (h *SessionHandle) createDeferredLocked(ctx context.Context) (sessionpkg.Info, error) {
+	info, err := h.manager.CreateSession(ctx, sessionpkg.CreateOptions{
 		BeadOnly:     true,
 		Alias:        h.session.Alias,
 		ExplicitName: h.session.ExplicitName,

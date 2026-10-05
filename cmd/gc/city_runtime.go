@@ -2683,6 +2683,10 @@ func (cr *CityRuntime) newWarmClaimTriggerResolver(servingRigs map[string]beads.
 // per-session file discovery and reads across every awake session at once). The
 // first steady-state tick performs both.
 func (cr *CityRuntime) beadReconcileTick(ctx context.Context, result DesiredStateResult, sessionBeads *sessionBeadSnapshot, trace *sessionReconcilerTraceCycle, bootReconcile bool) {
+	if _, err := cr.sharedWorkTick(ctx); err != nil {
+		fmt.Fprintf(cr.stderr, "shared work: %v (no legacy acquisition fallback)\n", err) //nolint:errcheck
+		return
+	}
 	desiredState := result.State
 	store := cr.cityBeadStore()
 	if store == nil {
@@ -3369,7 +3373,7 @@ func poolSweepWouldDrain(sessionBeads *sessionBeadSnapshot, desiredState map[str
 		if _, desired := desiredState[info.SessionNameMetadata]; desired {
 			continue
 		}
-		if isManualSessionInfo(info) || isNamedSessionInfo(info) {
+		if isManualSessionInfo(info) || isNamedSessionInfo(info) || info.IsSharedExecution() {
 			continue
 		}
 		return true
@@ -3400,7 +3404,7 @@ func sweepUndesiredPoolSessionBeads(
 		if _, desired := desiredState[info.SessionNameMetadata]; desired {
 			continue
 		}
-		if isManualSessionInfo(info) || isNamedSessionInfo(info) {
+		if isManualSessionInfo(info) || isNamedSessionInfo(info) || info.IsSharedExecution() {
 			continue
 		}
 		// Don't sweep beads that the reconciler still considers "start

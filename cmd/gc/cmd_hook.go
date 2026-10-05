@@ -297,6 +297,9 @@ func cmdHookWithOptions(args []string, opts hookCommandOptions, stdout, stderr i
 	// Other CLI entry points (cmd_sling, cmd_start, cmd_rig, cmd_supervisor)
 	// do the same immediately after loadCityConfig.
 	resolveRigPaths(cityPath, cfg.Rigs)
+	if cfg.Beads.SharedWork != nil || sharedExecutionEnvironmentPresent() {
+		return sharedHookClaim(opts, stdout, stderr)
+	}
 
 	// Fence a stale/superseded/unregistered runtime session BEFORE the
 	// city-suspension, agent-resolution, and agent-suspension early returns

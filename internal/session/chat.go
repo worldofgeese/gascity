@@ -280,6 +280,12 @@ func (m *Manager) retryFreshStartAfterStaleKey(
 	cfg runtime.Config,
 	unroute func(),
 ) (bool, error) {
+	if infoFromPersistedBead(*b).IsSharedExecution() {
+		if unroute != nil {
+			unroute()
+		}
+		return false, beads.ErrExecutionAlreadyStarted
+	}
 	// An empty session_key does not mean there is nothing to recover. The
 	// command can still carry a generated resume shape, because it was built
 	// while the key was present and the key was cleared before this start ran.
@@ -528,6 +534,9 @@ func (m *Manager) commitPendingContinuationReset(id string, b beads.Bead) (int, 
 }
 
 func (m *Manager) ensureRunning(ctx context.Context, id string, b beads.Bead, sessName, resumeCommand string, hints runtime.Config) error {
+	if _, err := sharedExecutionBinding(ctx, infoFromPersistedBead(b)); err != nil {
+		return err
+	}
 	// A kill-fenced row reads asleep while its runtime is still being torn
 	// down. Treating that runtime as live would flip the row back to active
 	// (confirmLiveSessionState) and erase the fence, so once the Stop landed the
@@ -587,6 +596,12 @@ func (m *Manager) ensureRunning(ctx context.Context, id string, b beads.Bead, se
 	cfg.Env = git.ApplySSHKeepaliveEnv(cfg.Env)
 	cfg = runtime.SyncWorkDirEnv(cfg)
 	started := false
+	if err := authorizeSharedExecutionStart(ctx, b); err != nil {
+		if unroute != nil {
+			unroute()
+		}
+		return err
+	}
 	// Refuse to resume if a prior escaped process for this session could not be
 	// confirmed dead: a survivor would race this replacement for the same work
 	// bead (duplicate bd close). This is the stable/reused-bead-ID path — the
@@ -655,6 +670,12 @@ func (m *Manager) ensureRunning(ctx context.Context, id string, b beads.Bead, se
 			started = retried
 		}
 	}
+	if err := m.checkSharedExecutionAfterStart(ctx, b, sessName); err != nil {
+		if unroute != nil {
+			unroute()
+		}
+		return err
+	}
 	if b.Metadata["transport"] == "" && (started || transportVerified) {
 		m.persistTransport(id, b.Metadata["provider"], transport)
 	}
@@ -671,6 +692,9 @@ func (m *Manager) ensureRunning(ctx context.Context, id string, b beads.Bead, se
 }
 
 func (m *Manager) ensureRunningRuntimeOnly(ctx context.Context, id string, b beads.Bead, sessName, resumeCommand string, hints runtime.Config) error {
+	if _, err := sharedExecutionBinding(ctx, infoFromPersistedBead(b)); err != nil {
+		return err
+	}
 	transport, _ := m.transportForBead(b, sessName)
 	unroute := m.routeACPIfNeeded(b.Metadata["provider"], transport, sessName)
 	if m.sp.IsRunning(sessName) {
@@ -718,6 +742,12 @@ func (m *Manager) ensureRunningRuntimeOnly(ctx context.Context, id string, b bea
 	cfg.Env = git.ApplySSHKeepaliveEnv(cfg.Env)
 	cfg = runtime.SyncWorkDirEnv(cfg)
 	started := false
+	if err := authorizeSharedExecutionStart(ctx, b); err != nil {
+		if unroute != nil {
+			unroute()
+		}
+		return err
+	}
 	// Refuse to respawn if a prior escaped process for this session could not
 	// be confirmed dead: a survivor would race this replacement for the same
 	// work bead. This is the reconciler respawn bridge on a stable/reused bead
@@ -769,6 +799,12 @@ func (m *Manager) ensureRunningRuntimeOnly(ctx context.Context, id string, b bea
 				return err
 			}
 		}
+	}
+	if err := m.checkSharedExecutionAfterStart(ctx, b, sessName); err != nil {
+		if unroute != nil {
+			unroute()
+		}
+		return err
 	}
 	return nil
 }

@@ -157,6 +157,9 @@ func repairPoolSlotWorkDirClobber(cfg *config.City, workBeads []beads.Bead, work
 		return
 	}
 	for i, wb := range workBeads {
+		if beads.IsExecutionOwned(wb) {
+			continue
+		}
 		store := workStores[i]
 		if store == nil {
 			continue

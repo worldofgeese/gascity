@@ -311,6 +311,18 @@ func computePoolDesiredStatesAt(
 	decisionTime time.Time,
 	trace *sessionReconcilerTraceCycle,
 ) []PoolDesiredState {
+	if cfg.Beads.SharedWork != nil {
+		// Exclude the shared template from every legacy tier, including nested
+		// floor reservations; it is launched only after execution admission.
+		legacy := *cfg
+		legacy.Agents = make([]config.Agent, 0, len(cfg.Agents))
+		for _, a := range cfg.Agents {
+			if a.QualifiedName() != cfg.Beads.SharedWork.Template {
+				legacy.Agents = append(legacy.Agents, a)
+			}
+		}
+		cfg = &legacy
+	}
 	// Build reverse lookup: any identifier → session bead ID.
 	// Assignee on work beads may be a bead ID, session name, alias, or
 	// a prior alias preserved in alias_history. Resume-tier dispatch

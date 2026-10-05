@@ -1423,6 +1423,9 @@ type BeadsConfig struct {
 	// "require" (guarded release or a typed refusal). Empty defaults to "off".
 	// Any other value fails config load.
 	GuardedRelease string `toml:"guarded_release,omitempty" jsonschema:"enum=off,enum=auto,enum=require"`
+	// SharedWork opts into a shared pool with immutable execution grants.
+	// Unsupported stores refuse this mode; absence preserves legacy scheduling.
+	SharedWork *SharedWorkConfig `toml:"shared_work,omitempty"`
 	// Policies defines per-bead-use storage and garbage-collection defaults.
 	// Policy names are interpreted by higher-level systems; unknown names are
 	// preserved so packs can stage future policy classes without breaking load.
@@ -4746,6 +4749,11 @@ func Parse(data []byte) (*City, error) {
 	}
 	if err := validateGuardedRelease(cfg.Beads.GuardedRelease); err != nil {
 		return nil, err
+	}
+	if cfg.Beads.SharedWork != nil {
+		if err := cfg.Beads.SharedWork.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	// Parse sees one layer. Cross-layer storage invariants (six-class
 	// completeness, binding resolution) are checked on the composed root in

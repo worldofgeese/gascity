@@ -551,6 +551,9 @@ func buildDesiredStateWithSessionBeadsAt(
 		if cfg.Agents[i].Suspended {
 			continue
 		}
+		if cfg.Beads.SharedWork != nil && cfg.Agents[i].QualifiedName() == cfg.Beads.SharedWork.Template {
+			continue
+		}
 		namedSessionMode := ""
 		for j := range cfg.NamedSessions {
 			if cfg.NamedSessions[j].TemplateQualifiedName() == cfg.Agents[i].QualifiedName() {
@@ -5388,7 +5391,7 @@ func stampRunSessionIdentity(cfg *config.City, workBeads []beads.Bead, workStore
 	// once rather than per step.
 	stampedRoots := map[string]struct{}{}
 	for i, wb := range workBeads {
-		if wb.Status != "in_progress" {
+		if wb.Status != "in_progress" || beads.IsExecutionOwned(wb) {
 			continue
 		}
 		store := workStores[i]
@@ -5451,6 +5454,9 @@ func workDirStampHasOwnershipEvidence(metadata map[string]string, workDir string
 // in another store, already gone, or already stamped is silently skipped (a
 // cross-store root gets stamped on its own store's reconcile pass).
 func stampRunRootFromStep(cfg *config.City, store beads.Store, step beads.Bead, sessionName, workDir string, allowUnownedWorkDir bool, stampedRoots map[string]struct{}, stderr io.Writer) {
+	if beads.IsExecutionOwned(step) {
+		return
+	}
 	rootID := strings.TrimSpace(step.Metadata[beadmeta.RootBeadIDMetadataKey])
 	if rootID == "" || rootID == step.ID {
 		return
@@ -5462,6 +5468,9 @@ func stampRunRootFromStep(cfg *config.City, store beads.Store, step beads.Bead, 
 	if err != nil {
 		// Cross-store / missing / transient — do NOT mark stamped, so a later
 		// step this pass (or a later reconcile) can retry resolving the root.
+		return
+	}
+	if beads.IsExecutionOwned(root) {
 		return
 	}
 	stampedRoots[rootID] = struct{}{}
@@ -5528,6 +5537,9 @@ func canonicalizeLegacyBoundAssignedWork(cfg *config.City, workBeads []beads.Bea
 	}
 	sessionByAssignee := buildSessionAssigneeIndex(sessionBeads)
 	for i, wb := range workBeads {
+		if beads.IsExecutionOwned(wb) {
+			continue
+		}
 		if wb.Status != "in_progress" && wb.Status != "open" {
 			continue
 		}
@@ -5599,7 +5611,7 @@ func canonicalizeLegacyBoundUnassignedRoutedWork(cfg *config.City, workBeads []b
 		return
 	}
 	for i, wb := range workBeads {
-		if wb.Status != "open" || strings.TrimSpace(wb.Assignee) != "" {
+		if wb.Status != "open" || strings.TrimSpace(wb.Assignee) != "" || beads.IsExecutionOwned(wb) {
 			continue
 		}
 		store := workStores[i]

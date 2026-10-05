@@ -429,6 +429,10 @@ func bdRigQualifiedMetadataRefusal(cfg *config.City, bdArgs []string) (string, b
 }
 
 func doBd(args []string, stdout, stderr io.Writer) int {
+	if sharedExecutionEnvironmentPresent() {
+		fmt.Fprintln(stderr, "gc bd: passthrough is unsupported for shared executions; use gc work (no unsafe fallback)") //nolint:errcheck
+		return 1
+	}
 	cityName, rigName, bdArgs := extractBdScopeFlags(args)
 
 	bdArgs, err := rewriteBdHeartbeatArgs(bdArgs)
@@ -463,6 +467,10 @@ func doBd(args []string, stdout, stderr io.Writer) int {
 	cfg, err := loadCityConfig(cityPath, stderr)
 	if err != nil {
 		fmt.Fprintf(stderr, "gc bd: loading config: %v\n", err) //nolint:errcheck // best-effort stderr
+		return 1
+	}
+	if cfg.Beads.SharedWork != nil {
+		fmt.Fprintln(stderr, "gc bd: passthrough is unsupported in shared-work mode; use gc work (no unsafe fallback)") //nolint:errcheck
 		return 1
 	}
 	if msg, refused := bdRigQualifiedMetadataRefusal(cfg, bdArgs); refused {

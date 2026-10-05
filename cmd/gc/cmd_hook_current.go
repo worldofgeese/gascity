@@ -51,6 +51,9 @@ cannot name its bead fails loudly instead of skipping its own work.`,
 // its current claim. It is the thin env+front-door root over doHookCurrent, which
 // holds the whole decision so it can be exercised without a city on disk.
 func cmdHookCurrent(idOnly bool, stdout, stderr io.Writer) int {
+	if sharedExecutionEnvironmentPresent() {
+		return sharedHookCurrent(idOnly, stdout, stderr)
+	}
 	sessionID := strings.TrimSpace(os.Getenv("GC_SESSION_ID"))
 	if sessionID == "" {
 		fmt.Fprintln(stderr, "gc hook current: no session identity (set $GC_SESSION_ID); only a session that claimed work has a current bead") //nolint:errcheck
@@ -70,6 +73,15 @@ func cmdHookCurrent(idOnly bool, stdout, stderr io.Writer) int {
 // bead must fail loudly rather than let a caller substitute an empty string and
 // skip the close it owes.
 func doHookCurrent(sessFront *session.Store, sessionID string, idOnly bool, stdout, stderr io.Writer) int {
+	info, err := sessFront.Get(sessionID)
+	if err != nil {
+		fmt.Fprintf(stderr, "gc hook current: %v\n", err) //nolint:errcheck
+		return 1
+	}
+	if info.IsSharedExecution() {
+		fmt.Fprintln(stderr, "gc hook current: shared work requires the original launch environment and authority") //nolint:errcheck
+		return 1
+	}
 	beadID, err := sessFront.CurrentClaimBeadID(sessionID)
 	if err != nil {
 		fmt.Fprintf(stderr, "gc hook current: %v\n", err) //nolint:errcheck

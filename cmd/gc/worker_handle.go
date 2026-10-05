@@ -305,6 +305,9 @@ func newWorkerSessionHandleForResolvedRuntimeWithConfig(
 	// runtime.Config directly and never routes through resolveTemplate
 	// (gc-6bw8o).
 	applyWorkerOverlayHints(&sessionCfg.Runtime.Hints, cfg, cityPath, template, resolved)
+	if metadata["session_origin"] == session.SharedExecutionOrigin {
+		sessionCfg.Runtime.Hints.Nudge = strings.TrimSpace(sessionCfg.Runtime.Hints.Nudge + "\n\n" + sharedWorkStartupInstruction)
+	}
 	return factory.SessionForResolvedRuntime(sessionCfg)
 }
 

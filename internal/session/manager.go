@@ -130,6 +130,9 @@ type Info struct {
 	PoolSlot                string // pool_slot (raw; pool helpers parse it)
 	PoolManaged             bool   // pool_managed == "true"
 	SessionOrigin           string // session_origin (raw; resolved origin is a method)
+	SharedExecutionID       string // immutable original shared execution grant
+	SharedWorkID            string // exact work ID for that grant
+	SharedWorkScope         string // work-store scope, not an eligibility filter
 	DependencyOnly          bool   // dependency_only == "true"
 	// DependencyOnlyMetadata is the RAW dependency_only metadata, verbatim and
 	// UNTRIMMED. The pin-awake wake-reason display path (cmd/gc) compares it
@@ -858,6 +861,9 @@ func NewManagerWithOptions(store beads.Store, sp runtime.Provider, opts ...Manag
 // spec.BeadOnly is set, creates a start-pending bead for the reconciler to
 // start later.
 func (m *Manager) CreateSession(ctx context.Context, spec CreateOptions) (Info, error) {
+	if _, err := sharedExecutionBinding(ctx, infoFromPersistedBead(beads.Bead{Metadata: spec.ExtraMeta})); err != nil {
+		return Info{}, err
+	}
 	if spec.BeadOnly {
 		return m.createBeadOnly(spec)
 	}
@@ -1024,6 +1030,9 @@ func (m *Manager) createStarted(ctx context.Context, spec CreateOptions) (Info, 
 		cfg.Env = git.ApplySSHKeepaliveEnv(cfg.Env)
 		cfg = runtime.SyncWorkDirEnv(cfg)
 
+		if err := authorizeSharedExecutionStart(ctx, b); err != nil {
+			return errors.Join(err, rollbackFailedCreate())
+		}
 		// Start the runtime session. Refuse to start if a prior escaped process
 		// for this session could not be confirmed dead: a survivor would race
 		// the replacement for the same work bead (duplicate bd close).
@@ -1035,6 +1044,9 @@ func (m *Manager) createStarted(ctx context.Context, spec CreateOptions) (Info, 
 		}
 		if err := m.sp.Start(ctx, sessName, cfg); err != nil {
 			if runtimeSessionMatchesBead(m.sp, sessName, b.ID, meta["instance_token"]) {
+				if err := m.checkSharedExecutionAfterStart(ctx, b, sessName); err != nil {
+					return errors.Join(err, rollbackFailedCreate())
+				}
 				if metaErr := m.confirmStartedRuntimeMetadata(b.ID, &b); metaErr != nil {
 					return metaErr
 				}
@@ -1051,6 +1063,9 @@ func (m *Manager) createStarted(ctx context.Context, spec CreateOptions) (Info, 
 				return errors.Join(fmt.Errorf("starting session: %w", err), rbErr)
 			}
 			return fmt.Errorf("starting session: %w", err)
+		}
+		if err := m.checkSharedExecutionAfterStart(ctx, b, sessName); err != nil {
+			return errors.Join(err, rollbackFailedCreate())
 		}
 		if metaErr := m.confirmStartedRuntimeMetadata(b.ID, &b); metaErr != nil {
 			if stopErr := m.sp.Stop(sessName); stopErr != nil {

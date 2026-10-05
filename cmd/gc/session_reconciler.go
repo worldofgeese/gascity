@@ -1677,6 +1677,15 @@ func reconcileSessionBeadsTracedWithNamedDemand(
 	if ctx != nil && ctx.Err() != nil {
 		return 0
 	}
+	// Shared executions have one-shot launch admission and authority-owned
+	// recovery. The ordinary session reconciler must never respawn their grants.
+	legacyRows := make([]sessionpkg.ReconcileSession, 0, len(rows))
+	for _, row := range rows {
+		if !row.Info.IsSharedExecution() {
+			legacyRows = append(legacyRows, row)
+		}
+	}
+	rows = legacyRows
 	// Load provider-health snapshot once per tick (ADR-0013 A1 M3a).
 	// All per-session gate checks in Phase 2 use this snapshot — no I/O per session.
 	phSnap := loadProviderHealthSnapshot(cityPath)

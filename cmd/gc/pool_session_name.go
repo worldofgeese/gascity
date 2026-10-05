@@ -692,6 +692,10 @@ func releaseOrphanedPoolAssignment(store beads.Store, wb beads.Bead, clearDetach
 	if store == nil || strings.TrimSpace(wb.ID) == "" {
 		return false
 	}
+	if beads.IsExecutionOwned(wb) {
+		// A local session census is not lease authority for a shared claim.
+		return false
+	}
 	update := beads.UpdateOpts{
 		Assignee: stringPtr(""),
 		Status:   stringPtr("open"),

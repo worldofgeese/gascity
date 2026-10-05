@@ -384,6 +384,9 @@ func cmdSlingWithJSON(args []string, isFormula, doNudge, force bool, title strin
 		fmt.Fprintln(stderr, message) //nolint:errcheck // best-effort stderr
 		return 1
 	}
+	if sharedExecutionEnvironmentPresent() {
+		return fail("shared_execution_required", "gc sling: shared executions cannot assign other work; use gc work")
+	}
 	// Remote city: forward the mutation over the control plane before any local
 	// city/config/store work. A remote sling resolves everything server-side and
 	// carries a request-bound X-GC-City-Write grant (gate G18); a remote error is
@@ -417,6 +420,9 @@ func cmdSlingWithJSON(args []string, isFormula, doNudge, force bool, title strin
 	cfg, prov, err := loadSlingCityConfig(cityPath)
 	if err != nil {
 		return fail("config_load_failed", fmt.Sprintf("gc sling: %v", err))
+	}
+	if cfg.Beads.SharedWork != nil {
+		return fail("shared_execution_required", "gc sling: per-agent assignment is unsupported in shared-work mode; ready unassigned team work is acquired from the shared pool")
 	}
 	emitLoadCityConfigWarnings(configWarnWriter(jsonOutput, stderr), prov)
 	applyFeatureFlags(cfg)

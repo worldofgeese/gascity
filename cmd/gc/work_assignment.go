@@ -181,6 +181,9 @@ func excludeMailMessageBeads(items []beads.Bead) []beads.Bead {
 // one revision-guarded update instead. A stale snapshot never releases a newer
 // incarnation, even when it reuses the same assignee.
 func (w workAssignment) ReleaseWorkBead(item beads.Bead, runTargetFallback string) error {
+	if beads.IsExecutionOwned(item) {
+		return fmt.Errorf("releasing %q: %w", item.ID, beads.ErrExecutionRequired)
+	}
 	store := w.unwrapped()
 	if store == nil {
 		return nil
@@ -395,6 +398,9 @@ func liveWorkAssignmentAssigneeMatches(store beads.Store, id, expectedStatus, ex
 // successor over that live claim. There is no conditional-reassign verb to reach
 // for — ReleaseIfCurrent only clears — so the guard is the live re-read.
 func (w workAssignment) ReassignWorkBead(item beads.Bead, newSessionID string) error {
+	if beads.IsExecutionOwned(item) {
+		return fmt.Errorf("reassigning %q: %w", item.ID, beads.ErrExecutionRequired)
+	}
 	store := w.unwrapped()
 	if store == nil {
 		return nil

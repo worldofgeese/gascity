@@ -77,6 +77,12 @@ func RuntimeEnvWithSessionContext(info Info, generation, continuationEpoch int, 
 		env["GC_AGENT"] = identity
 		env["BEADS_ACTOR"] = identity
 	}
+	env["GC_SHARED_WORK_ID"] = info.SharedWorkID
+	env["GC_SHARED_EXECUTION_ID"] = info.SharedExecutionID
+	env["GC_SHARED_WORK_SCOPE"] = info.SharedWorkScope
+	if info.IsSharedExecution() {
+		env["BEADS_ACTOR"] = info.SharedExecutionID
+	}
 	return env
 }
 

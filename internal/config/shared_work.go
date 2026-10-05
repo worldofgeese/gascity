@@ -1,0 +1,48 @@
+package config
+
+import (
+	"fmt"
+	"strings"
+	"time"
+)
+
+// SharedWorkConfig deliberately selects execution-authority-based scheduling.
+// Rig names the common work store; Template selects worker behavior, never
+// creator, priority, label or routing eligibility.
+type SharedWorkConfig struct {
+	Rig       string `toml:"rig"`
+	Template  string `toml:"template"`
+	Lease     string `toml:"lease,omitempty" jsonschema:"default=2m"`
+	MaxActive int    `toml:"max_active,omitempty" jsonschema:"default=1,minimum=1"`
+}
+
+func (s SharedWorkConfig) LeaseDuration() (time.Duration, error) {
+	raw := s.Lease
+	if raw == "" {
+		raw = "2m"
+	}
+	ttl, err := time.ParseDuration(raw)
+	if err != nil || ttl < time.Second || ttl > 24*time.Hour {
+		return 0, fmt.Errorf("beads.shared_work.lease must be between 1s and 24h, got %q", raw)
+	}
+	return ttl, nil
+}
+
+func (s SharedWorkConfig) ActiveLimit() int {
+	if s.MaxActive == 0 {
+		return 1
+	}
+	return s.MaxActive
+}
+
+func (s SharedWorkConfig) Validate() error {
+	if strings.TrimSpace(s.Rig) == "" || s.Rig != strings.TrimSpace(s.Rig) ||
+		strings.TrimSpace(s.Template) == "" || s.Template != strings.TrimSpace(s.Template) {
+		return fmt.Errorf("beads.shared_work requires an exact rig and worker template")
+	}
+	if s.MaxActive < 0 {
+		return fmt.Errorf("beads.shared_work.max_active must be positive")
+	}
+	_, err := s.LeaseDuration()
+	return err
+}

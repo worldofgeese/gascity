@@ -2877,7 +2877,7 @@ func reapStaleSessionBeads(
 		// They may legitimately be stopped between supervisor restarts; the
 		// named-session reconciler is responsible for preserving, waking, or
 		// retiring them after desired state is rebuilt from config.
-		if isNamedSessionInfo(info) {
+		if isNamedSessionInfo(info) || info.IsSharedExecution() {
 			continue
 		}
 		// Session is alive — nothing to reap.
@@ -3032,7 +3032,7 @@ func reapPreBootSessionBeads(
 
 	reaped := 0
 	for _, info := range sessionBeads.OpenInfos() {
-		if info.PendingCreateClaim || (dt != nil && dt.get(info.ID) != nil) || isNamedSessionInfo(info) {
+		if info.PendingCreateClaim || (dt != nil && dt.get(info.ID) != nil) || isNamedSessionInfo(info) || info.IsSharedExecution() {
 			continue
 		}
 		// Manual sessions are operator-owned; drain/archive states have their
@@ -3184,7 +3184,7 @@ func cleanupDeadRuntimeSessionCorpses(
 	for _, info := range sessionBeads.OpenInfos() {
 		// A kill-fenced row belongs to the `gc session kill` tearing its runtime
 		// down: the dead pane is the kill in progress, not an abandoned corpse.
-		if info.PendingCreateClaim || (dt != nil && dt.get(info.ID) != nil) || isNamedSessionInfo(info) || session.IsKillPendingInfo(info, clk.Now()) {
+		if info.PendingCreateClaim || (dt != nil && dt.get(info.ID) != nil) || isNamedSessionInfo(info) || info.IsSharedExecution() || session.IsKillPendingInfo(info, clk.Now()) {
 			continue
 		}
 		name := strings.TrimSpace(info.SessionNameMetadata)
