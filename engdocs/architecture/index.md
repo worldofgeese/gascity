@@ -64,15 +64,18 @@ Each is provably composable from the primitives.
     dispatch, rig-scoped labels
 15. **[Gas City Pack Specification (2.0)](../../docs/reference/specs/pack-spec.md)** —
     authoritative pack data model, file format, and loader semantics
+16. **[Shared-Work Execution](./shared-work-execution.md)** — opt-in
+    cross-city work pool: execution grants, lease renewal and reclaim,
+    controller coordinator
 
 ### End-to-End Traces
 
 These trace a concrete operation through all layers. The most effective
 way to understand how the system fits together.
 
-16. **[Life of a Bead](./life-of-a-bead.md)** — create → hook → claim →
+17. **[Life of a Bead](./life-of-a-bead.md)** — create → hook → claim →
     execute → close
-17. **[Life of a Molecule](./life-of-a-molecule.md)** — formula parse →
+18. **[Life of a Molecule](./life-of-a-molecule.md)** — formula parse →
     dispatch → molecule create → step execution → completion
 
 ## Document Types

@@ -78,13 +78,12 @@ func TestSharedExecutionAuthorityLifecycle(t *testing.T) {
 			if err != nil || !won || successor.ID == old.ID {
 				t.Fatalf("fresh takeover = %+v, %v, %v", successor, won, err)
 			}
-			before, err := authority.MutateExecution(successor, ExecutionMutation{
+			if _, err := authority.MutateExecution(successor, ExecutionMutation{
 				Operation: ExecutionStart, SessionID: "city-b-session", SessionName: "runtime-b",
-			})
-			if err != nil {
+			}); err != nil {
 				t.Fatal(err)
 			}
-			before, err = authority.InspectExecution(successor)
+			before, err := authority.InspectExecution(successor)
 			if err != nil {
 				t.Fatal(err)
 			}

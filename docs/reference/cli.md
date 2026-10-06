@@ -88,6 +88,7 @@ gc [flags]
 | [gc version](#gc-version) | Print gc version |
 | [gc wait](#gc-wait) | Inspect and manage durable session waits |
 | [gc whoami](#gc-whoami) | Show the authenticated hosted Gas City account |
+| [gc work](#gc-work) | Operate the current immutable shared-work execution |
 | [gc worktree](#gc-worktree) | Ensure or verify agent workspace worktrees |
 
 ## gc agent
@@ -5212,6 +5213,104 @@ gc whoami [flags]
 |------|------|---------|-------------|
 | `--at` | string |  | service base URL; defaults to GC_SERVICE_URL, the stored default, then https://gascity.com |
 | `--token` | string |  | API token to check; defaults to GC_SERVICE_TOKEN or the stored login |
+
+## gc work
+
+Shared work requires an explicitly selected beads.shared_work configuration
+and a store implementing the full execution/lease authority contract. There is
+no legacy or unconditional-write fallback. The native file store supports the
+cooperative local protocol; the bd/Enterprise adapter is deliberately unsupported.
+
+Worker operations use the ORIGINAL grant injected at session launch. They cannot
+target another bead or adopt its current assignee. Human comments and descriptions
+are preserved. Lease expiry permits exact-ID reclaim; committed reclaim, not the
+clock alone, revokes the old grant.
+
+```
+gc work
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| [gc work comment](#gc-work-comment) | Append a comment under the current execution grant |
+| [gc work complete](#gc-work-complete) | Guardedly complete this execution |
+| [gc work reclaim](#gc-work-reclaim) | Ask the authority to reclaim exactly one expired execution |
+| [gc work release](#gc-work-release) | Guardedly release this execution |
+| [gc work renew](#gc-work-renew) | Guardedly renew this execution |
+| [gc work run-once](#gc-work-run-once) | Run one shared renewal/recovery/acquisition pass (may start workers) |
+| [gc work show](#gc-work-show) | Show this session's currently authorized work |
+| [gc work update](#gc-work-update) | Guardedly update title, priority or non-reserved metadata |
+
+## gc work comment
+
+Append a comment under the current execution grant
+
+```
+gc work comment <text>
+```
+
+## gc work complete
+
+Guardedly complete this execution
+
+```
+gc work complete
+```
+
+## gc work reclaim
+
+Ask the authority to reclaim exactly one expired execution
+
+```
+gc work reclaim <exact-id>
+```
+
+## gc work release
+
+Guardedly release this execution
+
+```
+gc work release
+```
+
+## gc work renew
+
+Guardedly renew this execution
+
+```
+gc work renew
+```
+
+## gc work run-once
+
+Run one shared renewal/recovery/acquisition pass (may start workers)
+
+```
+gc work run-once
+```
+
+## gc work show
+
+Show this session's currently authorized work
+
+```
+gc work show
+```
+
+## gc work update
+
+Guardedly update title, priority or non-reserved metadata
+
+```
+gc work update [flags]
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--comment` | string |  | Append a comment, preserving existing human context |
+| `--metadata` | stringArray |  | Non-reserved key=value (repeatable) |
+| `--priority` | int |  | New priority (not an eligibility filter) |
+| `--title` | string |  | New title |
 
 ## gc worktree
 

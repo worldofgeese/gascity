@@ -163,6 +163,8 @@ unless the row names how they map to the canonical projection.
 
 The [shared-work reference](../../docs/reference/shared-execution.md) defines
 the opt-in native authority protocol and its cooperative/backend boundaries.
+The [shared-work architecture doc](../../engdocs/architecture/shared-work-execution.md)
+maps the controller lifecycle and code locations.
 
 | ID | Scenario | Required behavior | Evidence |
 |---|---|---|---|

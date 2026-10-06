@@ -236,6 +236,7 @@
               "reference/system-packs",
               "reference/exec-session-provider",
               "reference/exec-beads-provider",
+              "reference/shared-execution",
               "reference/tmux-agent-slice",
               "reference/herdr-provider"
             ]

@@ -53,6 +53,7 @@ type ExecutionOwner struct {
 // ExecutionOperation identifies a single authority-serialized transition.
 type ExecutionOperation string
 
+// Execution operations accepted by MutateExecution.
 const (
 	ExecutionUpdate   ExecutionOperation = "update"
 	ExecutionStart    ExecutionOperation = "start"
