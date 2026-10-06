@@ -554,3 +554,40 @@ func TestCitySchemaAgentDefinition(t *testing.T) {
 		t.Error("Agent 'name' not in required list")
 	}
 }
+
+func TestCitySchemaSharedWorkMatchesRuntime(t *testing.T) {
+	chdirModuleRootForBazel(t)
+	s, err := GenerateCitySchema()
+	if err != nil {
+		t.Fatalf("GenerateCitySchema: %v", err)
+	}
+
+	data, err := json.Marshal(s)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	props := defProperties(t, raw, "SharedWorkConfig")
+	maxActive, ok := props["max_active"].(map[string]interface{})
+	if !ok {
+		t.Fatal("SharedWorkConfig max_active property not a map")
+	}
+	// SharedWorkConfig.Validate accepts zero (ActiveLimit maps it to the default).
+	if minimum, _ := maxActive["minimum"].(float64); minimum != 0 {
+		t.Errorf("SharedWorkConfig.max_active minimum = %v, want 0 to match runtime validation", maxActive["minimum"])
+	}
+	for _, field := range []string{"rig", "template", "lease", "max_active"} {
+		prop, ok := props[field].(map[string]interface{})
+		if !ok {
+			t.Fatalf("SharedWorkConfig.%s property not a map", field)
+		}
+		if desc, _ := prop["description"].(string); desc == "" {
+			t.Errorf("SharedWorkConfig.%s has no description", field)
+		}
+	}
+}

@@ -2937,18 +2937,22 @@
     "SharedWorkConfig": {
       "properties": {
         "rig": {
-          "type": "string"
+          "type": "string",
+          "description": "Rig names the rig whose store holds the common work pool."
         },
         "template": {
-          "type": "string"
+          "type": "string",
+          "description": "Template is the worker template started for each acquired execution.\nIt selects worker behavior, not which work is eligible."
         },
         "lease": {
           "type": "string",
+          "description": "Lease is the execution grant's lease TTL as a Go duration, from 1s\nto 24h. Empty defaults to 2m.",
           "default": "2m"
         },
         "max_active": {
           "type": "integer",
-          "minimum": 1,
+          "minimum": 0,
+          "description": "MaxActive caps this city's concurrently active executions. Zero or\nunset defaults to 1; negative values are invalid.",
           "default": 1
         }
       },

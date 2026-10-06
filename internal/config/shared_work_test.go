@@ -32,6 +32,10 @@ func TestSharedWorkConfigIsExplicitAndValidated(t *testing.T) {
 	if err != nil || lease != 2*time.Minute || selected.Beads.SharedWork.ActiveLimit() != 1 {
 		t.Fatalf("shared defaults: %+v, %v", selected.Beads.SharedWork, err)
 	}
+	explicitZero, err := Parse([]byte("[beads.shared_work]\nrig = \"team\"\ntemplate = \"team/worker\"\nmax_active = 0\n"))
+	if err != nil || explicitZero.Beads.SharedWork.ActiveLimit() != 1 {
+		t.Fatalf("explicit max_active = 0 must mean the default limit: %+v, %v", explicitZero, err)
+	}
 }
 
 func TestSharedWorkConfigSurvivesUnrelatedBeadsFragment(t *testing.T) {

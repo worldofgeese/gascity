@@ -864,10 +864,10 @@ SharedWorkConfig deliberately selects execution-authority-based scheduling.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `rig` | string | **yes** |  |  |
-| `template` | string | **yes** |  |  |
-| `lease` | string |  | `2m` |  |
-| `max_active` | integer |  | `1` |  |
+| `rig` | string | **yes** |  | Rig names the rig whose store holds the common work pool. |
+| `template` | string | **yes** |  | Template is the worker template started for each acquired execution. It selects worker behavior, not which work is eligible. |
+| `lease` | string |  | `2m` | Lease is the execution grant's lease TTL as a Go duration, from 1s to 24h. Empty defaults to 2m. |
+| `max_active` | integer |  | `1` | MaxActive caps this city's concurrently active executions. Zero or unset defaults to 1; negative values are invalid. |
 
 ## StorageBindingConfig
 
